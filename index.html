@@ -707,7 +707,7 @@ function billsFor(day){
 }
 // ---- Difficulty curve: the job gets harder every single day ----
 // Endless mode (day >= 7): queues grow longer and the shift clock tightens.
-function casesForDay(day){ return day<6 ? 12 : Math.min(32, 16 + 2*(day-6)); }
+function casesForDay(day){ return day<6 ? 6 : Math.min(16, 8 + (day-6)); }
 function secPerCase(day){ return day<=6 ? SEC_PER_CASE : Math.max(7, SEC_PER_CASE-(day-6)); }
 
 /* ---- The compliance manual: rules unlock cumulatively ------------------ */
@@ -764,6 +764,12 @@ const WATCHLIST = [
   { name:"Silk Road Logistics", note:"Entity — sanctions-evasion front" },
   { name:"Anton Belov", note:"SDN — sanctions evasion" },
   { name:"Farah Idris", note:"SDN — terrorism financing" },
+  { name:"Dragan Petrovic", note:"SDN — arms trafficking" },
+  { name:"Nikolai Asanov", note:"SDN — sanctions evasion" },
+  { name:"Hassan Farouk", note:"SDN — terrorism financing" },
+  { name:"Yelena Markova", note:"SDN — money laundering" },
+  { name:"Northwind Shipping Ltd", note:"Entity — sanctions-evasion front" },
+  { name:"Azure Maritime Holdings", note:"Entity — proliferation finance" },
 ];
 const SANCTIONED_COUNTRIES = ["North Korea","Iran","Syria","Cuba","Crimea region"];
 const HIGH_RISK = ["Iran","North Korea","Syria","Cuba","Panama (shell)","Cayman (shell)","BVI (shell)","Seychelles (shell)","Belarus"];
@@ -1816,6 +1822,285 @@ const CASES = [
     speech:"Paying a domestic IT contractor for our records system.",
     txn:{type:"Wire Transfer",amount:38000,cash:false,detail:"To registered domestic vendor"},
     correct:"APPROVE", reason:"Large but consistent with a senior hospital administrator paying a registered domestic vendor for a clear purpose. Not listed, no high-risk destination. Approve — a big number alone isn't suspicion." },
+
+  /* ============================================================= *
+   *  POOL EXPANSION II — more variety so faces differ each round  *
+   * ============================================================= */
+
+  /* ----- Day 1: APPROVE vs CTR ----- */
+  { minDay:1, photo:"👩‍⚕️", name:"Brenda Voss", id:{type:"Driver License",exp:"2030-04-04",name:"Brenda Voss",dob:"1985-04-04"},
+    acct:{name:"Brenda Voss",dob:"1985-04-04",occ:"Nurse",income:"$70,000/yr",risk:"LOW"},
+    speech:"Depositing my paycheck.",
+    txn:{type:"Check Deposit",amount:3800,cash:false,detail:"Payroll check"},
+    correct:"APPROVE", reason:"A routine payroll check, not cash, well under $10,000 and consistent with a nurse. Approve." },
+
+  { minDay:1, photo:"🧔", name:"Salvatore Greco", id:{type:"Driver License",exp:"2031-06-06",name:"Salvatore Greco",dob:"1972-06-06"},
+    acct:{name:"Salvatore Greco",dob:"1972-06-06",occ:"Restaurant Owner",income:"$160,000/yr",risk:"MED"},
+    speech:"Weekend register cash — sixteen thousand eight hundred.",
+    txn:{type:"Cash Deposit",amount:16800,cash:true,detail:"Restaurant weekend takings"},
+    correct:"CTR", reason:"Cash over $10,000 → a CTR is mandatory. Restaurant weekend cash is an ordinary source, so it's not suspicious — file the CTR and serve him." },
+
+  { minDay:1, photo:"👩", name:"Olive Hart", id:{type:"State ID",exp:"2029-09-09",name:"Olive Hart",dob:"1990-09-09"},
+    acct:{name:"Olive Hart",dob:"1990-09-09",occ:"Florist",income:"$54,000/yr",risk:"LOW"},
+    speech:"Cash from a big wedding order — nine thousand two hundred.",
+    txn:{type:"Cash Deposit",amount:9200,cash:true,detail:"Single event order"},
+    correct:"APPROVE", reason:"A single $9,200 cash deposit is under the $10,000 line — no CTR — and one isolated deposit from a plausible source is not structuring. Approve." },
+
+  { minDay:1, photo:"🧓", name:"Dwight Sumner", id:{type:"Driver License",exp:"2030-12-12",name:"Dwight Sumner",dob:"1963-12-12"},
+    acct:{name:"Dwight Sumner",dob:"1963-12-12",occ:"Construction Co. Owner",income:"$155,000/yr",risk:"MED"},
+    speech:"Pulling twelve grand cash to pay the crew.",
+    txn:{type:"Cash Withdrawal",amount:12000,cash:true,detail:"Crew payroll, cash"},
+    correct:"CTR", reason:"The CTR rule covers cash withdrawals too — any cash transaction over $10,000. Legitimate purpose, so file the CTR and serve him." },
+
+  { minDay:1, photo:"👵", name:"Pearl Higgins", id:{type:"State ID",exp:"2028-03-03",name:"Pearl Higgins",dob:"1946-03-03"},
+    acct:{name:"Pearl Higgins",dob:"1946-03-03",occ:"Retired",income:"Pension",risk:"LOW"},
+    speech:"Just five hundred for the week, dear.",
+    txn:{type:"Cash Withdrawal",amount:500,cash:true,detail:"Personal use"},
+    correct:"APPROVE", reason:"A tiny routine withdrawal far below any threshold. No red flags. Approve." },
+
+  { minDay:1, photo:"👨", name:"Marco Tan", id:{type:"Driver License",exp:"2031-01-01",name:"Marco Tan",dob:"1978-01-01"},
+    acct:{name:"Marco Tan",dob:"1978-01-01",occ:"Used-Car Dealer",income:"$175,000/yr",risk:"MED"},
+    speech:"Two cars sold for cash today — twenty-two thousand.",
+    txn:{type:"Cash Deposit",amount:22000,cash:true,detail:"Proceeds of vehicle sales"},
+    correct:"CTR", reason:"Cash far over $10,000 → mandatory CTR. A dealer taking large cash for vehicles is ordinary business. File the CTR and serve him." },
+
+  { minDay:1, photo:"👨‍🔧", name:"Gavin Pierce", id:{type:"Driver License",exp:"2030-07-07",name:"Gavin Pierce",dob:"1989-07-07"},
+    acct:{name:"Gavin Pierce",dob:"1989-07-07",occ:"Plumber",income:"$68,000/yr",risk:"LOW"},
+    speech:"Cash job — ten thousand even.",
+    txn:{type:"Cash Deposit",amount:10000,cash:true,detail:"Plumbing payment"},
+    correct:"APPROVE", reason:"Trap! A CTR is required for cash OVER $10,000. Exactly $10,000 is at the line, not over it — no CTR. Consistent with a plumber. Approve.",
+    hint:"Exactly $10,000 is not 'over' $10,000." },
+
+  { minDay:1, photo:"🧑‍🏫", name:"Renee Fontaine", id:{type:"Driver License",exp:"2032-02-02",name:"Renee Fontaine",dob:"1991-02-02"},
+    acct:{name:"Renee Fontaine",dob:"1991-02-02",occ:"Teacher",income:"$60,000/yr",risk:"LOW"},
+    speech:"My year-end bonus check.",
+    txn:{type:"Check Deposit",amount:7500,cash:false,detail:"Employer bonus check"},
+    correct:"APPROVE", reason:"A check (not cash) for a bonus, consistent with a teacher. No threshold triggered. Approve." },
+
+  { minDay:1, photo:"👨‍🌾", name:"Hank Mercer", id:{type:"Driver License",exp:"2030-10-10",name:"Hank Mercer",dob:"1968-10-10"},
+    acct:{name:"Hank Mercer",dob:"1968-10-10",occ:"Farmer",income:"$92,000/yr",risk:"LOW"},
+    speech:"Market cash this week — thirteen thousand four hundred.",
+    txn:{type:"Cash Deposit",amount:13400,cash:true,detail:"Produce market sales"},
+    correct:"CTR", reason:"Cash over $10,000 → CTR required. Market produce cash is legitimate for a farmer. File the CTR and serve him." },
+
+  { minDay:1, photo:"🧑", name:"Tessa Quinn", id:{type:"State ID",exp:"2031-08-08",name:"Tessa Quinn",dob:"2000-08-08"},
+    acct:{name:"Tessa Quinn",dob:"2000-08-08",occ:"Student",income:"$14,000/yr",risk:"LOW"},
+    speech:"Just two-fifty out, please.",
+    txn:{type:"Cash Withdrawal",amount:250,cash:true,detail:"Personal use"},
+    correct:"APPROVE", reason:"Trivial routine withdrawal. Nothing to see. Approve." },
+
+  /* ----- Day 2: OFAC sanctions screening ----- */
+  { minDay:2, photo:"🧔", name:"Dragan Petrovic", id:{type:"Passport",exp:"2030-05-05",name:"Dragan Petrovic",dob:"1970-05-05"},
+    acct:{name:"Dragan Petrovic",dob:"1970-05-05",occ:"Trader",income:"$260,000/yr",risk:"HIGH"},
+    speech:"A standard wire to my partner. Process it.",
+    txn:{type:"Wire Transfer",amount:8800,cash:false,detail:"To overseas account"},
+    correct:"BLOCK", reason:"'Dragan Petrovic' matches the OFAC SDN watchlist (arms trafficking). Block regardless of amount — sanctioned individuals may not be transacted with." },
+
+  { minDay:2, photo:"👩‍💼", name:"Bridget Nolan", id:{type:"Driver License",exp:"2031-03-03",name:"Bridget Nolan",dob:"1987-03-03"},
+    acct:{name:"Bridget Nolan",dob:"1987-03-03",occ:"Operations Manager",income:"$98,000/yr",risk:"MED"},
+    speech:"Settling an invoice with one of our carriers.",
+    txn:{type:"Wire Transfer",amount:7200,cash:false,detail:"To Northwind Shipping Ltd"},
+    correct:"BLOCK", reason:"The customer is clean, but the BENEFICIARY 'Northwind Shipping Ltd' is a listed entity. Screen the counterparty, not just the sender — block it.",
+    hint:"Check the beneficiary against the watchlist." },
+
+  { minDay:2, photo:"🧔", name:"Paulo Cardoso", id:{type:"Passport",exp:"2030-09-09",name:"Paulo Cardoso",dob:"1983-09-09"},
+    acct:{name:"Paulo Cardoso",dob:"1983-09-09",occ:"Engineer",income:"$88,000/yr",risk:"LOW"},
+    speech:"Sending money to my family back home.",
+    txn:{type:"Wire Transfer",amount:1500,cash:false,detail:"To family in Brazil"},
+    correct:"APPROVE", reason:"Neither party is listed, the amount is modest, and Brazil is not sanctioned. A plausible family remittance — approve." },
+
+  { minDay:2, photo:"👨", name:"Nikolai Asanov", id:{type:"Passport",exp:"2029-11-11",name:"Nikolai Asanov",dob:"1966-11-11"},
+    acct:{name:"Nikolai Asanov",dob:"1966-11-11",occ:"Businessman",income:"$320,000/yr",risk:"HIGH"},
+    speech:"Routine transfer to an associate.",
+    txn:{type:"Wire Transfer",amount:5500,cash:false,detail:"To overseas account"},
+    correct:"BLOCK", reason:"'Nikolai Asanov' is on the OFAC watchlist (sanctions evasion). Block the transaction." },
+
+  { minDay:2, photo:"🧕", name:"Imelda Reyes", id:{type:"Passport",exp:"2031-07-07",name:"Imelda Reyes",dob:"1980-07-07"},
+    acct:{name:"Imelda Reyes",dob:"1980-07-07",occ:"Caregiver",income:"$48,000/yr",risk:"LOW"},
+    speech:"Support for my parents in Manila.",
+    txn:{type:"Wire Transfer",amount:1100,cash:false,detail:"To family in the Philippines"},
+    correct:"APPROVE", reason:"Not listed, small family transfer, the Philippines is not sanctioned. Approve." },
+
+  { minDay:2, photo:"🤵", name:"Hassan Farouk", id:{type:"Passport",exp:"2030-02-02",name:"Hassan Farouk",dob:"1979-02-02"},
+    acct:{name:"Hassan Farouk",dob:"1979-02-02",occ:"Merchant",income:"$130,000/yr",risk:"HIGH"},
+    speech:"Please send this through.",
+    txn:{type:"Wire Transfer",amount:6400,cash:false,detail:"To overseas beneficiary"},
+    correct:"BLOCK", reason:"'Hassan Farouk' is a listed SDN (terrorism financing). Block — sanctions screening applies regardless of amount or stated purpose." },
+
+  { minDay:2, photo:"🧔", name:"Omar Haddad", id:{type:"Passport",exp:"2030-08-08",name:"Omar Haddad",dob:"1984-08-08"},
+    acct:{name:"Omar Haddad",dob:"1984-08-08",occ:"Importer",income:"$140,000/yr",risk:"HIGH"},
+    speech:"A settlement to my supplier overseas.",
+    txn:{type:"Wire Transfer",amount:9100,cash:false,detail:"To beneficiary in Syria"},
+    correct:"BLOCK", reason:"Syria is a comprehensively sanctioned jurisdiction. The customer isn't listed, but funds to a sanctioned country are blocked regardless. Block.",
+    hint:"Check the destination country against the sanctioned list." },
+
+  { minDay:2, photo:"👩", name:"Yelena Markova", id:{type:"Passport",exp:"2029-06-06",name:"Yelena Markova",dob:"1981-06-06"},
+    acct:{name:"Yelena Markova",dob:"1981-06-06",occ:"Consultant",income:"$210,000/yr",risk:"HIGH"},
+    speech:"A simple transfer. Nothing unusual.",
+    txn:{type:"Wire Transfer",amount:4800,cash:false,detail:"To overseas account"},
+    correct:"BLOCK", reason:"'Yelena Markova' matches the OFAC SDN watchlist (money laundering). Block regardless of amount." },
+
+  { minDay:2, photo:"👨‍💼", name:"Klaus Werner", id:{type:"Passport",exp:"2031-10-10",name:"Klaus Werner",dob:"1976-10-10"},
+    acct:{name:"Klaus Werner",dob:"1976-10-10",occ:"Manufacturer",income:"$190,000/yr",risk:"MED"},
+    speech:"Paying a registered supplier in Munich.",
+    txn:{type:"Wire Transfer",amount:9000,cash:false,detail:"To registered vendor, Germany"},
+    correct:"APPROVE", reason:"Not listed, a legitimate business payment, Germany is not sanctioned. Approve." },
+
+  { minDay:2, photo:"👩", name:"Felicity Adeyemi", id:{type:"Driver License",exp:"2030-04-04",name:"Felicity Adeyemi",dob:"1988-04-04"},
+    acct:{name:"Felicity Adeyemi",dob:"1988-04-04",occ:"Procurement Lead",income:"$102,000/yr",risk:"MED"},
+    speech:"Wiring a deposit to a shipping partner.",
+    txn:{type:"Wire Transfer",amount:6600,cash:false,detail:"To Azure Maritime Holdings"},
+    correct:"BLOCK", reason:"The customer is clean, but the beneficiary 'Azure Maritime Holdings' is a listed entity. Counterparties are screened just like individuals — block it.",
+    hint:"Screen the beneficiary name." },
+
+  /* ----- Day 3: KYC ----- */
+  { minDay:3, photo:"👴", name:"Stuart Beale", id:{type:"Driver License",exp:"2020-05-05",name:"Stuart Beale",dob:"1957-05-05"},
+    acct:{name:"Stuart Beale",dob:"1957-05-05",occ:"Retired",income:"Pension",risk:"LOW"},
+    speech:"Moving a little to savings.",
+    txn:{type:"Internal Transfer",amount:2000,cash:false,detail:"Checking → savings"},
+    flags:[15], also:["SAR"], correct:"BLOCK", reason:"The license expired in 2020 — years before today's 2026. An expired ID fails KYC even for a harmless transfer. Block (or file a SAR citing the invalid ID) and request a current one.",
+    hint:"Check the expiry against today's date." },
+
+  { minDay:3, photo:"🧑", name:"Michael Dorsey", id:{type:"Driver License",exp:"2031-01-01",name:"Micheal Dorsey",dob:"1990-01-01"},
+    acct:{name:"Michael Dorsey",dob:"1990-01-01",occ:"Accountant",income:"$92,000/yr",risk:"LOW"},
+    speech:"Depositing my paycheck.",
+    txn:{type:"Check Deposit",amount:4200,cash:false,detail:"Payroll check"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"Name mismatch: the ID reads 'Micheal Dorsey' but the account is 'Michael Dorsey'. A transposed spelling still fails KYC — names must match exactly. Block (or file a SAR for the identity discrepancy).",
+    hint:"Read the first name on the ID letter by letter." },
+
+  { minDay:3, photo:"👩", name:"Wendy Stiles", id:{type:"Passport",exp:"2030-12-12",name:"Wendy Stiles",dob:"1992-03-15"},
+    acct:{name:"Wendy Stiles",dob:"1992-08-15",occ:"Designer",income:"$76,000/yr",risk:"LOW"},
+    speech:"Just a small transfer between my accounts.",
+    txn:{type:"Internal Transfer",amount:1800,cash:false,detail:"Savings → checking"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"DOB mismatch: the ID shows 1992-03-15 but the account shows 1992-08-15. Identity can't be verified — block (or file a SAR for the identity discrepancy), even though the transaction looks ordinary.",
+    hint:"Compare the month on the ID and the account." },
+
+  { minDay:3, photo:"👨", name:"Carl Jensen", id:{type:"Driver License",exp:"2031-05-05",name:"Carl Jensen",dob:"1986-05-05"},
+    acct:{name:"Carl Jensen",dob:"1986-05-05",occ:"Surveyor",income:"$81,000/yr",risk:"LOW"},
+    speech:"Depositing this week's pay.",
+    txn:{type:"Check Deposit",amount:2900,cash:false,detail:"Payroll check"},
+    correct:"APPROVE", reason:"ID matches the account on name and date of birth and is unexpired, and the transaction fits his profile. Clean KYC — approve." },
+
+  { minDay:3, photo:"🧔", name:"Anatoly Kuzmin", id:{type:"Driver License",exp:"2030-11-11",name:"Anatoly Kuzmin",dob:"1981-11-11"},
+    acct:{name:"Anatoly Kuzmin",dob:"1981-11-11",occ:"Driver",income:"$45,000/yr",risk:"MED"},
+    idPhotoName:"Kuzmin-Forged-Decoy",
+    speech:"Here's my ID. Cash this for me.",
+    txn:{type:"Cash Withdrawal",amount:1200,cash:true,detail:"Personal use"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"The photo on the ID is not the person at your window — name and dates line up, but the face is someone else. A forged or stolen document. Block (or file a SAR for the identity discrepancy) and escalate.",
+    hint:"Compare the ID photo to the customer's face." },
+
+  { minDay:3, photo:"👩", name:"Ingrid Solberg", id:{type:"Passport",exp:"2021-09-09",name:"Ingrid Solberg",dob:"1979-09-09"},
+    acct:{name:"Ingrid Solberg",dob:"1979-09-09",occ:"Architect",income:"$120,000/yr",risk:"LOW"},
+    speech:"A routine wire to my own overseas account.",
+    txn:{type:"Wire Transfer",amount:2500,cash:false,detail:"To own account abroad"},
+    flags:[15], also:["SAR"], correct:"BLOCK", reason:"The passport expired in 2021. Even a harmless transfer requires valid identification. Block (or file a SAR citing the expired ID) and request a current one.",
+    hint:"Check the passport expiry." },
+
+  { minDay:3, photo:"🧑", name:"Naomi Frank", id:{type:"Driver License",exp:"2032-04-04",name:"Naomi Frank",dob:"1996-04-04"},
+    acct:{name:"Naomi Frank",dob:"1996-04-04",occ:"Lab Technician",income:"$58,000/yr",risk:"LOW"},
+    speech:"Forty dollars out, please.",
+    txn:{type:"Cash Withdrawal",amount:40,cash:true,detail:"Personal use"},
+    correct:"APPROVE", reason:"Valid, matching ID and a trivial routine withdrawal. Nothing wrong — approve." },
+
+  { minDay:3, photo:"👨", name:"Patrick O'Hara", id:{type:"Driver License",exp:"2030-06-06",name:"Patrick O'Hare",dob:"1984-06-06"},
+    acct:{name:"Patrick O'Hara",dob:"1984-06-06",occ:"Electrician",income:"$73,000/yr",risk:"LOW"},
+    speech:"Depositing a check from work.",
+    txn:{type:"Check Deposit",amount:3300,cash:false,detail:"Payroll check"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"Surname mismatch: ID 'O'Hare' vs account 'O'Hara'. A one-letter difference still fails KYC — block (or file a SAR for the identity discrepancy) and verify.",
+    hint:"Compare the surname spelling exactly." },
+
+  /* ----- Day 4: Structuring ----- */
+  { minDay:4, photo:"🧑", name:"Cody Burnett", id:{type:"Driver License",exp:"2031-02-02",name:"Cody Burnett",dob:"1995-02-02"},
+    acct:{name:"Cody Burnett",dob:"1995-02-02",occ:"Waiter",income:"$33,000/yr",risk:"MED"},
+    speech:"Putting some cash in again.",
+    txn:{type:"Cash Deposit",amount:9600,cash:true,detail:"Cash"},
+    log:["Jun 02 — Cash deposit $9,500","Jun 03 — Cash deposit $9,700","Jun 04 — Cash deposit $9,400","Today  — Cash deposit $9,600"],
+    ring:"Meridian", flags:[0,2], correct:"SAR", reason:"Four consecutive cash deposits all just under $10,000 is deliberate structuring to dodge the CTR — and far above a waiter's income. File a SAR.",
+    hint:"Look at the recent-activity log, not just today's amount." },
+
+  { minDay:4, photo:"👩", name:"Lorraine Pace", id:{type:"Driver License",exp:"2030-10-10",name:"Lorraine Pace",dob:"1979-10-10"},
+    acct:{name:"Lorraine Pace",dob:"1979-10-10",occ:"Laundromat Owner",income:"$120,000/yr",risk:"LOW"},
+    speech:"Coin-machine takings — they vary by the week.",
+    txn:{type:"Cash Deposit",amount:7400,cash:true,detail:"Laundromat coin receipts"},
+    log:["Jun 02 — Cash deposit $3,200","Jun 03 — Cash deposit $8,100","Jun 04 — Cash deposit $2,600","Today  — Cash deposit $7,400"],
+    correct:"APPROVE", reason:"Varying cash amounts tied to a cash-intensive business — no consistent 'just under $10k' pattern. That's normal retail, not structuring. Approve.",
+    hint:"Structuring hugs the threshold; varying small sums don't." },
+
+  { minDay:4, photo:"👨", name:"Desmond Hale", id:{type:"Driver License",exp:"2029-12-12",name:"Desmond Hale",dob:"1990-12-12"},
+    acct:{name:"Desmond Hale",dob:"1990-12-12",occ:"Salesman",income:"$52,000/yr",risk:"MED"},
+    speech:"Just a deposit. I went to a couple of your branches today.",
+    txn:{type:"Cash Deposit",amount:9300,cash:true,detail:"Cash"},
+    log:["Today 09:10 — Cash deposit $9,300 (Main St branch)","Today 11:40 — Cash deposit $9,200 (Oak Ave branch)","Today 14:05 — Cash deposit $9,400 (5th St branch)"],
+    ring:"Meridian", flags:[0], correct:"SAR", reason:"Same-day cash deposits just under $10k spread across MULTIPLE branches is textbook structuring designed to avoid aggregation and the CTR. File a SAR." },
+
+  { minDay:4, photo:"🧔", name:"Trevor Lyle", id:{type:"Driver License",exp:"2030-03-03",name:"Trevor Lyle",dob:"1983-03-03"},
+    acct:{name:"Trevor Lyle",dob:"1983-03-03",occ:"Mechanic",income:"$49,000/yr",risk:"MED"},
+    speech:"Taking some cash out, same as usual.",
+    txn:{type:"Cash Withdrawal",amount:9700,cash:true,detail:"Cash"},
+    log:["May 30 — Cash withdrawal $9,800","Jun 02 — Cash withdrawal $9,600","Jun 04 — Cash withdrawal $9,900","Today  — Cash withdrawal $9,700"],
+    flags:[0], correct:"SAR", reason:"Structuring works on withdrawals too — repeated cash-outs just below $10,000 to dodge the CTR. The pattern, not any single amount, is the red flag. File a SAR." },
+
+  { minDay:4, photo:"👩", name:"Beatrice Lowe", id:{type:"Passport",exp:"2031-08-08",name:"Beatrice Lowe",dob:"1975-08-08"},
+    acct:{name:"Beatrice Lowe",dob:"1975-08-08",occ:"Gallery Owner",income:"$140,000/yr",risk:"MED"},
+    speech:"One cash sale today — fourteen thousand.",
+    txn:{type:"Cash Deposit",amount:14000,cash:true,detail:"Single art sale"},
+    log:["Jun 05 — Cash deposit $14,000 (single)"],
+    correct:"CTR", reason:"One open cash deposit over $10,000 from a plausible source — that's a CTR, not a SAR. She isn't hiding under the threshold. File the CTR and serve her.",
+    hint:"Open and over $10k = CTR. Structuring stays UNDER." },
+
+  { minDay:4, photo:"🧑", name:"Jamal Rivers", id:{type:"State ID",exp:"2031-04-04",name:"Jamal Rivers",dob:"2000-04-04"},
+    acct:{name:"Jamal Rivers",dob:"2000-04-04",occ:"Student",income:"$0 (no income)",risk:"MED"},
+    speech:"It's my friend's money — he asked me to put it in.",
+    txn:{type:"Cash Deposit",amount:9500,cash:true,detail:"Third party's cash"},
+    log:["Jun 01 — Cash deposit $9,400","Jun 03 — Cash deposit $9,600","Today  — Cash deposit $9,500"],
+    ring:"Meridian", flags:[0,8,2], correct:"SAR", reason:"A no-income student making repeated just-under-$10k cash deposits of someone else's money is a money-mule red flag plus structuring. File a SAR." },
+
+  /* ----- Day 5: Suspicious activity ----- */
+  { minDay:5, photo:"🧑", name:"Owen Pratt", id:{type:"Driver License",exp:"2030-09-09",name:"Owen Pratt",dob:"1998-09-09"},
+    acct:{name:"Owen Pratt",dob:"1998-09-09",occ:"Intern",income:"$26,000/yr",risk:"LOW"},
+    speech:"Wiring seventy thousand abroad for an opportunity.",
+    txn:{type:"Wire Transfer",amount:70000,cash:false,detail:"To offshore account (Cayman shell)"},
+    flags:[2,3,10,13], correct:"SAR", reason:"An intern earning $26k wiring $70k to a Cayman shell is grossly inconsistent with the profile — layering with no clear economic purpose. File a SAR." },
+
+  { minDay:5, photo:"🧓", name:"Vernon Slade", id:{type:"Passport",exp:"2031-01-01",name:"Vernon Slade",dob:"1955-01-01"},
+    acct:{name:"Vernon Slade",dob:"1955-01-01",occ:"Former Governor (PEP)",income:"$180,000/yr",risk:"HIGH"},
+    speech:"Depositing cash. I'd prefer not to say where it came from.",
+    txn:{type:"Cash Deposit",amount:130000,cash:true,detail:"Source undisclosed"},
+    flags:[14,4,2], correct:"SAR", reason:"A Politically Exposed Person depositing $130k cash with an undisclosed source is a corruption red flag. File a SAR (a CTR applies as well).",
+    hint:"PEP + unexplained large cash = elevated risk." },
+
+  { minDay:5, photo:"👨‍⚕️", name:"Adrian Coetzee", id:{type:"Passport",exp:"2031-05-05",name:"Adrian Coetzee",dob:"1974-05-05"},
+    acct:{name:"Adrian Coetzee",dob:"1974-05-05",occ:"Orthopedic Surgeon",income:"$540,000/yr",risk:"MED"},
+    speech:"Paying a domestic medical-supply vendor.",
+    txn:{type:"Wire Transfer",amount:50000,cash:false,detail:"To registered domestic vendor"},
+    correct:"APPROVE", reason:"Large but consistent with a high-earning surgeon paying a registered domestic vendor for a clear purpose. Not listed, no high-risk destination. Approve — size alone isn't suspicion.",
+    hint:"Does the activity fit this customer's profile?" },
+
+  { minDay:5, photo:"🧔", name:"Gene Tarrant", id:{type:"Driver License",exp:"2030-07-07",name:"Gene Tarrant",dob:"1982-07-07"},
+    acct:{name:"Gene Tarrant",dob:"1982-07-07",occ:"Unemployed",income:"$0 (no income)",risk:"MED"},
+    speech:"I won't say where it's from. Just deposit it.",
+    txn:{type:"Cash Deposit",amount:40000,cash:true,detail:"Refuses to explain source"},
+    flags:[4,5,2], correct:"SAR", reason:"An unemployed customer depositing $40k cash and refusing to explain the source is overtly secretive with unexplained funds. File a SAR (a CTR also applies).",
+    hint:"What does refusing to explain the source tell you?" },
+
+  { minDay:5, photo:"🧔", name:"Cyrus Behnam", id:{type:"Passport",exp:"2030-12-12",name:"Cyrus Behnam",dob:"1980-12-12"},
+    acct:{name:"Cyrus Behnam",dob:"1980-12-12",occ:"Exporter",income:"$170,000/yr",risk:"HIGH"},
+    speech:"A routine settlement to my supplier in Tehran.",
+    txn:{type:"Wire Transfer",amount:8200,cash:false,detail:"To beneficiary in Iran"},
+    correct:"BLOCK", reason:"Iran is a comprehensively sanctioned jurisdiction. However routine it sounds, funds to a sanctioned country are blocked. Block the transfer.",
+    hint:"Check the destination country against the sanctioned list." },
+
+  { minDay:5, photo:"👩", name:"Lydia Sharpe", id:{type:"Driver License",exp:"2031-03-03",name:"Lydia Sharpe",dob:"1989-03-03"},
+    acct:{name:"Lydia Sharpe",dob:"1989-03-03",occ:"Office Clerk",income:"$38,000/yr",risk:"MED"},
+    speech:"Money came in this morning; I'm sending it right back out.",
+    txn:{type:"Wire Transfer",amount:24000,cash:false,detail:"Pass-through to Panama shell"},
+    flags:[3,2,13], correct:"SAR", reason:"Rapid in-and-out 'pass-through' of $24k to a Panama shell — funds that arrive and immediately leave, far above the customer's income. Classic layering. File a SAR." },
+
+  { minDay:5, photo:"👩", name:"Amelia Dorn", id:{type:"Passport",exp:"2030-06-06",name:"Amelia Dorn",dob:"1991-06-06"},
+    acct:{name:"Amelia Dorn",dob:"1991-06-06",occ:"Translator",income:"$70,000/yr",risk:"LOW"},
+    speech:"Sending a little support to my parents.",
+    txn:{type:"Wire Transfer",amount:1600,cash:false,detail:"Family support, Spain"},
+    correct:"APPROVE", reason:"A modest family remittance to a non-sanctioned country, consistent with her income and clearly explained. Approve — routine support isn't suspicious." },
 ];
 
 /* ---- Day plans: which cases & how many appear -------------------------- */
@@ -1986,7 +2271,7 @@ function paintFaces(root){
 
 function buildQueue(day){
   const unused = c => !state.used.has(c.name);
-  const FRESH = 8, REVIEW = 4;
+  const FRESH = 4, REVIEW = 2;
   let q;
   if(day>=6){
     // Audit & endless mode: a growing mix with every rule in play. Once the roster
