@@ -707,7 +707,7 @@ function billsFor(day){
 }
 // ---- Difficulty curve: the job gets harder every single day ----
 // Endless mode (day >= 7): queues grow longer and the shift clock tightens.
-function casesForDay(day){ return day<6 ? 6 : Math.min(16, 8 + (day-6)); }
+function casesForDay(day){ return day<6 ? 12 : Math.min(32, 16 + 2*(day-6)); }
 function secPerCase(day){ return day<=6 ? SEC_PER_CASE : Math.max(7, SEC_PER_CASE-(day-6)); }
 
 /* ---- The compliance manual: rules unlock cumulatively ------------------ */
@@ -1986,7 +1986,7 @@ function paintFaces(root){
 
 function buildQueue(day){
   const unused = c => !state.used.has(c.name);
-  const FRESH = 4, REVIEW = 2;
+  const FRESH = 8, REVIEW = 4;
   let q;
   if(day>=6){
     // Audit & endless mode: a growing mix with every rule in play. Once the roster
