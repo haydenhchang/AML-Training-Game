@@ -2576,23 +2576,57 @@ function showOverlay(html){ overlay.innerHTML = html; overlay.style.display = "f
 function hideOverlay(){ overlay.style.display = "none"; }
 
 /* ---- Leaderboard: highest DAY reached wins, ties broken by pay --------- */
+/* ---- Shared leaderboard via Supabase (with offline localStorage fallback).
+   Fill in the two constants below with your Supabase project URL + anon key.
+   The anon key is meant to be public; row-level security limits it to
+   reading and inserting score rows. If left blank, scores stay device-local. */
+const SB_URL = "__SUPABASE_URL__";       // e.g. https://abcdwxyz.supabase.co
+const SB_KEY = "__SUPABASE_ANON_KEY__";  // your project's anon / public key
+const sbOn = ()=> SB_URL && SB_KEY && !SB_URL.startsWith("__");
+
 const LB_KEY = "kyc_aml_leaderboard_v1";
-function loadBoard(){ try{ const b=JSON.parse(localStorage.getItem(LB_KEY)); return Array.isArray(b)?b:[]; }catch(e){ return []; } }
-function saveBoard(b){ try{ localStorage.setItem(LB_KEY, JSON.stringify(b)); }catch(e){} }
-function bestDay(){ const b=loadBoard(); return b.length?b[0].day:0; }
-function addScore(name, day, pay){
+let BOARD = loadLocal();   // in-memory board: local cache, or a snapshot of the global board
+function loadLocal(){ try{ const b=JSON.parse(localStorage.getItem(LB_KEY)); return Array.isArray(b)?b:[]; }catch(e){ return []; } }
+function saveLocal(b){ try{ localStorage.setItem(LB_KEY, JSON.stringify(b)); }catch(e){} }
+function sortBoard(b){ return b.slice().sort((x,y)=> y.day-x.day || y.pay-x.pay || x.ts-y.ts).slice(0,10); }
+function bestDay(){ return BOARD.length?BOARD[0].day:0; }
+
+async function sbGet(){
+  const r=await fetch(`${SB_URL}/rest/v1/scores?select=name,day,pay,ts&order=day.desc,pay.desc,ts.asc&limit=10`,
+    { headers:{ apikey:SB_KEY, Authorization:"Bearer "+SB_KEY } });
+  if(!r.ok) throw new Error("sb get "+r.status);
+  return await r.json();
+}
+async function sbAdd(e){
+  const r=await fetch(`${SB_URL}/rest/v1/scores`, { method:"POST",
+    headers:{ apikey:SB_KEY, Authorization:"Bearer "+SB_KEY, "Content-Type":"application/json", Prefer:"return=minimal" },
+    body: JSON.stringify({ name:e.name, day:e.day, pay:e.pay, ts:e.ts }) });
+  if(!r.ok) throw new Error("sb add "+r.status);
+}
+// Pull the global board from the server and repaint any board currently on screen.
+async function refreshBoard(){
+  if(!sbOn()) return;
+  try{ const rows=await sbGet(); BOARD=rows; saveLocal(rows); repaintBoards(); }catch(e){}
+}
+function repaintBoards(){
+  document.querySelectorAll("[data-board]").forEach(node=>{
+    const top5=node.getAttribute("data-board")==="5";
+    const hl=node.getAttribute("data-hl");
+    node.innerHTML=boardRows(top5?BOARD.slice(0,5):BOARD, hl?parseFloat(hl):null);
+  });
+}
+async function addScore(name, day, pay){
   const clean=(name||"").replace(/[<>]/g,"").trim().toUpperCase().slice(0,12) || "ANON";
   const entry={ name:clean, day, pay, ts:Date.now()+Math.random() };
-  const b=loadBoard(); b.push(entry);
-  b.sort((x,y)=> y.day-x.day || y.pay-x.pay || x.ts-y.ts);
-  const top=b.slice(0,10); saveBoard(top);
+  BOARD=sortBoard(BOARD.concat(entry)); saveLocal(BOARD);   // optimistic local update
+  if(sbOn()){
+    try{ await sbAdd(entry); const rows=await sbGet(); BOARD=rows; saveLocal(rows); }catch(e){}
+  }
   return { entry };
 }
-function boardRows(highlightTs, limit){
-  let b=loadBoard();
-  if(!b.length) return `<div class="lb-empty">No scores yet — be the first to survive.</div>`;
-  if(limit) b=b.slice(0,limit);
-  return b.map((e,i)=>`<div class="lb-row${e.ts===highlightTs?' me':''}">`+
+function boardRows(rows, highlightTs){
+  if(!rows || !rows.length) return `<div class="lb-empty">No scores yet — be the first to survive.</div>`;
+  return rows.map((e,i)=>`<div class="lb-row${e.ts===highlightTs?' me':''}">`+
     `<span class="lb-rank">${i+1}</span><span class="lb-name">${e.name}</span>`+
     `<span class="lb-day">Day ${e.day}</span><span class="lb-pay">${money(e.pay)}</span></div>`).join("");
 }
@@ -2658,7 +2692,7 @@ function endRun(opts){
 function renderEndOverlay(opts, result){
   const day=state.day, pay=state.pay;
   const section = result
-    ? `<div class="lb-wrap"><h3>★ LEADERBOARD ★</h3>${boardRows(result.entry.ts)}</div>`
+    ? `<div class="lb-wrap"><h3>★ LEADERBOARD ★</h3><div data-board="10" data-hl="${result.entry.ts}">${boardRows(BOARD, result.entry.ts)}</div></div>`
     : `<div class="score-entry">
          <p>You reached <b style="color:#9bdc6e">Day ${day}</b> · balance <b style="color:#cBa24a">${money(pay)}</b></p>
          <div class="se-row"><input id="initials" maxlength="12" placeholder="ENTER NAME" autocomplete="off" spellcheck="false"/><button class="cta" id="saveScore">Save</button></div>
@@ -2674,7 +2708,9 @@ function renderEndOverlay(opts, result){
   el("retryBtn").addEventListener("click", startGame);
   if(!result){
     const inp=el("initials");
-    const save=()=>{ if(runRecorded) return; runRecorded=true; const r=addScore(inp?inp.value:"", day, pay); renderEndOverlay(opts, r); };
+    const save=async()=>{ if(runRecorded) return; runRecorded=true;
+      const btn=el("saveScore"); if(btn){ btn.disabled=true; btn.textContent=sbOn()?"Saving…":"Save"; }
+      const r=await addScore(inp?inp.value:"", day, pay); renderEndOverlay(opts, r); };
     el("saveScore").addEventListener("click", save);
     if(inp){ inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); save(); } }); setTimeout(()=>inp.focus(),60); }
   }
@@ -2869,11 +2905,12 @@ function titleScreen(){
     <br><br>
     New rules unlock through Day 6 — then the shift <b>never ends</b>: each day brings more customers and less time. ${MAX_STRIKES} strikes (or going broke) and you're out. <b>Reach the highest day to top the leaderboard.</b></p>
     ${best?`<p class="hint">Best so far: <b style="color:#9bdc6e">Day ${best}</b></p>`:""}
-    <div class="lb-wrap"><h3>★ TOP OFFICERS ★</h3>${boardRows(null,5)}</div>
+    <div class="lb-wrap"><h3>★ TOP OFFICERS ★</h3><div data-board="5">${boardRows(BOARD.slice(0,5))}</div></div>
     <div class="lb-wrap"><h3>★ ACHIEVEMENTS ★</h3>${achGridHtml()}</div>
     <button class="cta" id="startBtn">Report for Duty</button>
   `);
   el("startBtn").addEventListener("click", startGame);
+  refreshBoard(); // pull the latest global scores and repaint the top-5
 }
 
 /* ---- Sidebar tab switching --------------------------------------------- */
