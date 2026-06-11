@@ -1,0 +1,2922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Know Your Customer — An AML Compliance Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#11140f;
+    --booth:#3c4a44;        /* desaturated teal booth wall */
+    --booth-dark:#2b3530;
+    --desk:#5a4f38;         /* grimy wooden/metal desk */
+    --desk-dark:#473e2b;
+    --panel:#39443d;
+    --panel2:#4a564d;
+    --ink:#d7ddd0;
+    --ink-dim:#93a094;
+    --line:#1c211c;         /* hard black-green outlines */
+    --green:#7d9b4e;
+    --amber:#cBa24a;
+    --red:#b14a32;
+    --blue:#5a8199;
+    --stamp-red:#a82a1c;
+    --stamp-green:#3f6d39;
+    --paper:#d8cdab;        /* aged document paper */
+    --paper2:#cabf99;
+    --paper-ink:#2a2417;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{
+    background:#0a0c08;
+    color:var(--ink);
+    font-family:"VT323","Courier New",monospace;
+    font-size:20px;
+    line-height:1.15;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:14px;
+    overflow:hidden;
+    image-rendering:pixelated;
+  }
+  canvas.pxface{image-rendering:pixelated;image-rendering:crisp-edges;}
+  #game{
+    width:100%;
+    max-width:1000px;
+    height:100%;
+    max-height:720px;
+    background:var(--panel);
+    border:2px solid var(--line);
+    box-shadow:0 0 0 4px #000, 0 18px 40px rgba(0,0,0,.6);
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    overflow:hidden;
+  }
+  header{
+    background:linear-gradient(#34382f,#262a22);
+    border-bottom:2px solid var(--line);
+    padding:8px 14px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    letter-spacing:1px;
+  }
+  header .title{font-weight:bold;color:var(--amber);text-transform:uppercase;font-size:22px;}
+  header .stats{display:flex;gap:18px;font-size:18px;color:var(--ink-dim);}
+  header .stats b{color:var(--ink);}
+  #muteBtn,#pauseBtn{background:none;border:1px solid var(--line);color:var(--ink-dim);border-radius:3px;cursor:pointer;font-size:15px;padding:1px 6px;}
+  #muteBtn:hover,#pauseBtn:hover{color:var(--ink);}
+  .pause-screen{position:absolute;inset:0;z-index:45;display:none;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;background:rgba(8,10,7,.92);}
+  .pause-screen.show{display:flex;}
+  .pause-screen h1{color:var(--amber);letter-spacing:4px;margin:0 0 6px;}
+  .pause-screen p{color:var(--ink-dim);}
+  .pause-screen .big{font-size:60px;margin-bottom:10px;}
+  .strike{color:var(--red);}
+  /* CRT scanlines + vignette over everything (non-interactive) */
+  .crt{position:absolute;inset:0;z-index:50;pointer-events:none;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 1px, transparent 1px 3px),
+      radial-gradient(130% 120% at 50% 50%, transparent 58%, rgba(0,0,0,.45) 100%);
+    mix-blend-mode:multiply;opacity:.5;}
+  .crt.off{display:none;}
+  main{flex:1;display:flex;min-height:0;}
+  .booth{
+    flex:1;
+    padding:14px;
+    overflow-y:auto;
+    border-right:3px solid var(--line);
+    /* grimy desk surface: wood-grain streaks + grime vignette */
+    background-color:var(--desk);
+    background-image:
+      repeating-linear-gradient(90deg, rgba(0,0,0,.10) 0 2px, transparent 2px 5px),
+      repeating-linear-gradient(0deg, rgba(0,0,0,.06) 0 1px, transparent 1px 7px),
+      radial-gradient(120% 80% at 50% -10%, rgba(0,0,0,.45), transparent 60%);
+  }
+  .sidebar{
+    width:262px;
+    background:var(--booth-dark);
+    display:flex;
+    flex-direction:column;
+    border-left:1px solid #000;
+  }
+  .sidebar .tabs{display:flex;border-bottom:3px solid var(--line);}
+  .sidebar .tabs button{
+    flex:1;background:var(--booth);color:var(--ink-dim);border:none;
+    border-right:1px solid #000;padding:8px 4px;cursor:pointer;
+    font-family:inherit;font-size:18px;text-transform:uppercase;letter-spacing:1px;
+  }
+  .sidebar .tabs button.active{background:var(--panel2);color:var(--amber);box-shadow:inset 0 -3px 0 var(--amber);}
+  .sidebar .tabcontent{flex:1;overflow-y:auto;padding:12px;font-size:18px;display:none;}
+  .sidebar .tabcontent.active{display:block;}
+  h3{margin:0 0 8px;color:var(--amber);font-size:18px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--line);padding-bottom:4px;}
+  .rule{margin:0 0 10px;padding-left:8px;border-left:4px solid var(--green);}
+  .rule.new{border-left-color:var(--amber);animation:flash 1s ease 3;}
+  .rule b{color:#fff;}
+  @keyframes flash{50%{background:rgba(199,155,59,.18);}}
+  .watch-item{padding:4px 6px;border-bottom:1px dashed var(--line);color:#e3b0a3;}
+  .watch-item small{color:var(--ink-dim);}
+  .glossary-item{margin:0 0 10px;padding:0 0 8px 8px;border-left:3px solid var(--blue);border-bottom:1px dashed var(--line);}
+  .glossary-item b{color:var(--amber);}
+  .glossary-item div{color:var(--ink);margin:2px 0;}
+  .glossary-item a{color:#7fc0db;font-size:13px;text-decoration:none;word-break:break-all;}
+  .glossary-item a:hover{text-decoration:underline;}
+
+  /* bank teller station: marble wall, brass sign, vaulted lobby beyond the glass */
+  .scene{
+    position:relative;height:198px;margin:-14px -14px 14px;overflow:hidden;
+    background:
+      repeating-linear-gradient(95deg, rgba(255,255,255,.04) 0 1px, transparent 1px 60px),
+      linear-gradient(#5d6b62,#48564f 58%,#3a4842);   /* marble wall */
+    border-bottom:4px solid var(--line);
+    box-shadow:inset 0 0 0 3px rgba(0,0,0,.35);
+  }
+  .banksign{ /* brass nameplate over the window */
+    position:absolute;top:7px;left:50%;transform:translateX(-50%);z-index:7;
+    background:linear-gradient(#d8b358,#a9842f);color:#241c08;
+    font-family:"VT323",monospace;font-size:16px;letter-spacing:2px;text-transform:uppercase;
+    padding:2px 16px;border:2px solid #6e5320;border-radius:3px;white-space:nowrap;
+    box-shadow:0 2px 0 rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.4);
+  }
+  .scene .counter{ /* polished marble teller counter */
+    position:absolute;left:0;right:0;bottom:0;height:38px;z-index:6;
+    background:linear-gradient(#c2bca8,#938b78 50%,#6d6757);
+    border-top:4px solid #2e2820;
+    box-shadow:0 -3px 0 rgba(0,0,0,.4), inset 0 2px 0 rgba(255,255,255,.35);
+  }
+  .scene .counter:after{ /* transaction tray slot in the counter */
+    content:"";position:absolute;left:50%;top:9px;transform:translateX(-50%);
+    width:150px;height:8px;background:#1e1b15;border-radius:4px;box-shadow:inset 0 2px 3px rgba(0,0,0,.7);
+  }
+  .window{ /* teller glass looking into the bank lobby */
+    position:absolute;left:50%;bottom:38px;transform:translateX(-50%);
+    width:236px;height:130px;z-index:2;overflow:hidden;
+    border:5px solid #2c2a22;border-bottom:none;border-radius:3px;
+    background:linear-gradient(#d7b58e,#c0996f 65%,#a87d54); /* warm lobby light */
+  }
+  .lobby{ position:absolute;inset:0;z-index:1;
+    background:linear-gradient(#cdb088,#b08a62 58%,#8e6c47);
+  }
+  .lobby .floor{ position:absolute;left:0;right:0;bottom:0;height:26px;
+    background:repeating-linear-gradient(90deg,#7c5c3c 0 14px,#8b6a48 14px 28px);
+    border-top:2px solid #5a4128; }
+  .lobby .vault{ /* round bank vault door in the back wall */
+    position:absolute;left:50%;top:24px;transform:translateX(-50%);width:80px;height:80px;border-radius:50%;
+    background:radial-gradient(circle at 40% 35%, #9aa0a4,#62686d 62%,#41464a);
+    border:5px solid #2c3033;box-shadow:0 0 0 3px #6a7074, inset 0 0 9px rgba(0,0,0,.6);
+  }
+  .lobby .vault:after{ content:"";position:absolute;inset:0;margin:auto;width:16px;height:16px;border-radius:50%;
+    background:#262a2d;border:3px solid #80878c; } /* vault wheel */
+  .lobby .col{ position:absolute;top:0;bottom:24px;width:20px;
+    background:linear-gradient(90deg,#efe7d4,#ccbf9f 55%,#a89875);
+    border-left:2px solid rgba(255,255,255,.45);border-right:2px solid rgba(0,0,0,.25);
+    box-shadow:0 2px 0 rgba(0,0,0,.3); }
+  .lobby .col.left{ left:16px; } .lobby .col.right{ right:16px; }
+  .window .glare{ /* glass reflection streak */
+    position:absolute;inset:0;z-index:5;pointer-events:none;
+    background:linear-gradient(115deg, transparent 38%, rgba(255,255,255,.16) 40%, transparent 43%, transparent 70%, rgba(255,255,255,.08) 72%, transparent 75%);
+  }
+  .customer{
+    position:absolute;bottom:0;left:-100px;z-index:3;
+    display:flex;flex-direction:column;align-items:center;transition:none;
+  }
+  .customer .sprite{ width:60px;height:auto;display:block; filter:drop-shadow(2px 2px 0 rgba(0,0,0,.4)); }
+  .customer .body{
+    width:54px;height:46px;margin-top:-2px;border-radius:10px 10px 0 0;
+    background:#566154;border:3px solid var(--line);border-bottom:none;
+  }
+  .customer.walking .sprite{animation:bob .34s steps(2,end) infinite;}
+  .customer.walking .body{animation:sway .34s steps(2,end) infinite;}
+  @keyframes bob{50%{transform:translateY(-3px);}}
+  @keyframes sway{50%{transform:translateX(-2px);}}
+  .customer.walkIn{ animation:walkIn 1.15s steps(8,end) forwards; }
+  .customer.walkOut{ animation:walkOut 1.0s steps(7,end) forwards; }
+  @keyframes walkIn{ from{left:-100px;} to{left:calc(50% - 30px);} }
+  @keyframes walkOut{ from{left:calc(50% - 30px);opacity:1;} to{left:130%;opacity:.3;} }
+  .dossier{transition:opacity .35s ease, transform .35s ease;}
+  .dossier.hidden{opacity:0;pointer-events:none;transform:translateY(40px) scale(.96);} /* papers pulled into the slot */
+  /* queue line of waiting customers behind the glass */
+  .queue{position:absolute;bottom:2px;left:6px;right:6px;z-index:2;display:flex;gap:6px;justify-content:flex-end;align-items:flex-end;opacity:.8;}
+  .qfig{display:flex;flex-direction:column;align-items:center;filter:brightness(.7) saturate(.7);}
+  .qfig canvas{width:26px;height:auto;image-rendering:pixelated;}
+  .qfig .qbody{width:22px;height:14px;border-radius:6px 6px 0 0;background:#4a5247;border:2px solid var(--line);border-bottom:none;margin-top:-2px;}
+
+  /* documents = aged papers tossed on the desk */
+  .doc{
+    background:var(--paper);
+    background-image:
+      radial-gradient(80% 60% at 80% 10%, rgba(120,100,60,.10), transparent 60%),
+      radial-gradient(50% 40% at 10% 90%, rgba(90,70,40,.12), transparent 60%);
+    color:var(--paper-ink);
+    border:1px solid #8d8262;
+    padding:10px 14px 14px;
+    margin:0 0 14px;
+    font-family:"Special Elite","Courier New",monospace;
+    font-size:15px;
+    box-shadow:3px 4px 0 rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.25);
+    position:relative;
+  }
+  /* slight scatter so it reads like papers on a desk */
+  .doc:nth-of-type(odd){ transform:rotate(-1.1deg); }
+  .doc:nth-of-type(even){ transform:rotate(0.9deg); }
+  .doc.passport{ background:var(--paper2); border:2px solid #7c7150; }
+  .doc .doc-title{
+    font-family:"VT323",monospace;
+    font-weight:bold;text-transform:uppercase;letter-spacing:1px;
+    font-size:18px;border-bottom:2px solid #8d8262;padding-bottom:4px;margin-bottom:8px;
+    display:flex;justify-content:space-between;color:#5a4b2e;
+  }
+  .row{display:flex;justify-content:space-between;gap:10px;padding:2px 0;font-size:15px;}
+  .row .k{color:#6b6450;text-transform:uppercase;}
+  .row .v{font-weight:bold;text-align:right;color:#211c10;}
+  .idcard{display:flex;gap:12px;}
+  .idphoto{
+    width:66px;height:80px;flex:0 0 66px;background:#8d978c;
+    border:2px solid #4b4632;padding:2px;
+    display:flex;align-items:flex-end;justify-content:center;
+  }
+  .idphoto canvas{ width:60px;height:auto;display:block; }
+  .idfields{flex:1;}
+
+  /* ===== Photo ID cards (driver license / passport) ===== */
+  .iddoc{
+    position:relative;margin:0 0 16px;border-radius:8px;overflow:hidden;
+    box-shadow:3px 5px 0 rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.25);
+    font-family:"VT323",monospace;
+  }
+  .iddoc:nth-of-type(odd){ transform:rotate(-1.4deg); }
+  .iddoc .idphoto{ background:#8d978c; }
+
+  /* --- Driver License: small credit-card sized (~1.6:1 landscape) --- */
+  .iddoc.dl{
+    width:308px;                 /* card-sized, NOT full width */
+    background:linear-gradient(135deg,#e8eee6,#d2ddd6 60%,#c3d2cb);
+    border:2px solid #2f3b34;border-radius:11px;
+    transform:rotate(-2deg);
+  }
+  .iddoc.dl:before{ /* guilloché security pattern */
+    content:"";position:absolute;inset:0;opacity:.16;pointer-events:none;
+    background:
+      repeating-radial-gradient(circle at 22% 60%, #2f6d6d 0 1px, transparent 1px 9px),
+      repeating-linear-gradient(60deg, #3f6d39 0 1px, transparent 1px 8px);
+  }
+  .dl-top{
+    position:relative;display:flex;align-items:center;gap:6px;
+    background:linear-gradient(#2f6d4f,#245a40);color:#eafff0;
+    padding:3px 8px;font-size:14px;letter-spacing:1px;text-transform:uppercase;
+    border-bottom:2px solid #16331f;
+  }
+  .dl-top .dl-flag{color:#ffd95a;}
+  .dl-top .dl-state{font-weight:bold;}
+  .dl-top .dl-kind{margin-left:auto;color:#cdedd7;}
+  .dl-body{position:relative;display:flex;gap:9px;padding:7px 9px;}
+  .dl-photo{ width:54px;height:66px;flex:0 0 54px;border:2px solid #2f3b34;padding:2px;display:flex;align-items:flex-end;justify-content:center;}
+  .dl-photo canvas{ width:48px;height:auto; }
+  .dl-fields{flex:1;color:#16241c;font-size:13px;line-height:1.1;}
+  .dlf{display:flex;gap:6px;padding:0;border-bottom:1px dotted rgba(0,0,0,.18);}
+  .dlf .k{color:#3f6d4f;min-width:30px;text-transform:uppercase;font-size:11px;}
+  .dlf .v{font-weight:bold;color:#10211a;}
+  .dlf.two{justify-content:space-between;gap:8px;}
+  .dlf.two .k{min-width:0;}
+  .dl-seal{
+    position:absolute;right:8px;bottom:4px;font-size:30px;color:rgba(47,109,79,.30);
+    transform:rotate(-10deg);pointer-events:none;
+  }
+  .dl-sig{
+    font-family:"Special Elite",cursive;font-size:16px;color:#1c2a22;
+    padding:1px 9px 5px;border-top:1px solid rgba(0,0,0,.2);font-style:italic;
+  }
+
+  /* --- Passport: realistic data page (booklet) --- */
+  .iddoc.pp{ width:432px; background:#c9ba98; border:2px solid #4a3a22; border-radius:7px; padding:5px; transform:rotate(1.1deg); }
+  .pp-page{
+    position:relative;overflow:hidden;border:1px solid #9a8a64;border-radius:3px;
+    background:
+      repeating-radial-gradient(circle at 26% 34%, rgba(46,78,134,.07) 0 2px, transparent 2px 8px),
+      repeating-linear-gradient(58deg, rgba(46,78,134,.05) 0 1px, transparent 1px 7px),
+      linear-gradient(#efe7d1,#ddd0b1);                                  /* guilloché security tint */
+  }
+  .pp-head{ display:flex;align-items:center;gap:8px;padding:6px 11px;border-bottom:2px solid #8a7748; }
+  .pp-seal{
+    width:28px;height:28px;flex:0 0 28px;border-radius:50%;border:2px solid #b08a2e;
+    background:radial-gradient(circle,#f6e9bb,#d8c382);color:#8a6a1e;font-size:16px;
+    display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 4px rgba(0,0,0,.2);
+  }
+  .pp-titles{flex:1;}
+  .pp-country{font-family:"VT323",monospace;font-size:19px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#1d2a4a;}
+  .pp-kind{font-family:"Special Elite",monospace;font-size:12px;color:#5a4b2e;font-style:italic;}
+  .pp-type{font-family:"VT323",monospace;font-size:11px;color:#5a4b2e;text-align:center;line-height:1;}
+  .pp-type b{font-size:18px;color:#1d2a4a;}
+  .pp-body{position:relative;display:flex;gap:11px;padding:9px 11px;}
+  .pp-photo{ width:78px;height:96px;flex:0 0 78px;border:2px solid #3a2e1a;padding:2px;background:#8d978c;
+    display:flex;align-items:flex-end;justify-content:center;filter:sepia(.3) contrast(1.05);box-shadow:1px 1px 0 rgba(0,0,0,.35);}
+  .pp-photo canvas{ width:72px;height:auto; }
+  .pp-fields{flex:1;display:flex;flex-direction:column;gap:1px;padding-right:30px;}
+  .ppf{display:flex;flex-direction:column;border-bottom:1px dotted rgba(90,61,34,.3);padding:0;}
+  .ppf.two{flex-direction:row;gap:14px;}
+  .ppf.two>span{display:flex;flex-direction:column;}
+  .ppf .k{color:#7a5a32;font-size:11px;text-transform:uppercase;letter-spacing:.5px;}
+  .ppf .v{color:#16213a;font-weight:bold;font-size:15px;line-height:1.12;font-family:"Special Elite",monospace;}
+  .pp-ghost{ position:absolute;right:9px;bottom:6px;width:40px;height:50px;opacity:.2;filter:grayscale(1);pointer-events:none; }
+  .pp-ghost canvas{ width:40px;height:auto; }
+  .mrz{
+    background:#f4eeda;color:#15130e;font-family:"VT323",monospace;font-size:14px;
+    letter-spacing:1px;padding:5px 10px;border-top:2px solid #8a7748;white-space:nowrap;overflow:hidden;line-height:1.4;
+  }
+  .log{font-size:15px;}
+  .log div{padding:1px 0;border-bottom:1px dotted #b3ab92;}
+  .muted{color:#6b6450;font-style:italic;}
+
+  /* ===== Account ledger — green-bar statement paper ===== */
+  .ledger{
+    position:relative;width:452px;max-width:100%;margin:0 0 16px;
+    border:1px solid #8a9a7e;border-radius:2px;overflow:hidden;
+    background:#eaf1e0;
+    background-image:repeating-linear-gradient(#e7efdd 0 21px, #d6e4c8 21px 42px); /* green bars */
+    font-family:"Special Elite","Courier New",monospace;color:#26301f;
+    box-shadow:3px 4px 0 rgba(0,0,0,.45);transform:rotate(-0.7deg);
+  }
+  .ledger:before{ content:"";position:absolute;left:30px;top:0;bottom:0;width:2px;background:#c0564a;opacity:.45; } /* red margin rule */
+  .ledger:after{ content:"";position:absolute;left:8px;top:0;bottom:0;width:6px;
+    background:repeating-linear-gradient(#fff 0 5px,#cfd9c4 5px 10px); } /* perforated edge */
+  .ledger-top{
+    position:relative;background:linear-gradient(#33402a,#26301f);color:#dfe8cf;
+    font-family:"VT323",monospace;font-size:17px;letter-spacing:1px;text-transform:uppercase;
+    padding:5px 12px;display:flex;justify-content:space-between;border-bottom:2px solid #16210e;
+  }
+  .ledger-body{padding:7px 14px 10px 38px;}
+  .lrow{display:flex;justify-content:space-between;gap:10px;padding:1px 0;font-size:15px;}
+  .lrow .k{color:#5a6b4a;text-transform:uppercase;font-size:13px;}
+  .lrow .v{font-weight:bold;color:#1a2414;}
+  .ledger-sub{font-family:"VT323",monospace;text-transform:uppercase;font-size:15px;color:#3f6d39;
+    border-bottom:1px solid #9aaa86;margin:7px 0 2px;letter-spacing:1px;}
+  .ledger-log{font-size:14px;}
+  .ledger-log div{display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px dotted #aebb9c;}
+
+  /* ===== Transaction slip — torn teller receipt ===== */
+  .slip{
+    position:relative;width:282px;margin:0 0 18px;padding:12px 16px 18px;
+    background:#fbf7ec;color:#2a2417;font-family:"VT323",monospace;font-size:17px;line-height:1.25;
+    box-shadow:3px 4px 0 rgba(0,0,0,.4);transform:rotate(1.6deg);
+    background-image:repeating-linear-gradient(0deg, rgba(0,0,0,.025) 0 1px, transparent 1px 3px);
+    clip-path:polygon(0 5px,4% 0,8% 5px,12% 0,16% 5px,20% 0,24% 5px,28% 0,32% 5px,36% 0,40% 5px,44% 0,48% 5px,52% 0,56% 5px,60% 0,64% 5px,68% 0,72% 5px,76% 0,80% 5px,84% 0,88% 5px,92% 0,96% 5px,100% 0,
+      100% calc(100% - 5px),96% 100%,92% calc(100% - 5px),88% 100%,84% calc(100% - 5px),80% 100%,76% calc(100% - 5px),72% 100%,68% calc(100% - 5px),64% 100%,60% calc(100% - 5px),56% 100%,52% calc(100% - 5px),48% 100%,44% calc(100% - 5px),40% 100%,36% calc(100% - 5px),32% 100%,28% calc(100% - 5px),24% 100%,20% calc(100% - 5px),16% 100%,12% calc(100% - 5px),8% 100%,4% calc(100% - 5px),0 100%);
+  }
+  .slip-head{text-align:center;font-size:21px;letter-spacing:1px;text-transform:uppercase;}
+  .slip-line{text-align:center;font-size:14px;color:#6b6450;}
+  .slip-sep{border-top:2px dashed #b3a884;margin:7px 0;}
+  .srow{display:flex;justify-content:space-between;gap:10px;padding:1px 0;}
+  .srow span:first-child{color:#6b6450;text-transform:uppercase;font-size:13px;}
+  .srow span:last-child{font-weight:bold;text-align:right;}
+  .srow.big span:last-child{font-size:24px;color:#1c1810;}
+  .slip-barcode{height:28px;margin:8px 0 4px;
+    background:repeating-linear-gradient(90deg,#2a2417 0 2px,transparent 2px 4px,#2a2417 4px 5px,transparent 5px 8px,#2a2417 8px 11px,transparent 11px 13px);}
+
+  /* discrepancy tool: click two like fields to compare */
+  .cmp{cursor:pointer;border-radius:2px;padding:0 2px;transition:background .1s;}
+  .cmp:hover{background:rgba(0,0,0,.12);box-shadow:0 0 0 1px rgba(0,0,0,.25);}
+  .cmp-sel{outline:2px solid #cBa24a;background:rgba(199,162,74,.32);}
+  .cmp-ok{outline:2px solid #3f6d39;background:rgba(63,109,57,.38);}
+  .cmp-bad{outline:2px solid #a82a1c;background:rgba(168,42,28,.38);}
+  .cmp-toast{
+    position:absolute;left:38%;top:120px;transform:translateX(-50%);z-index:14;
+    font-family:"VT323",monospace;font-size:22px;letter-spacing:1px;padding:4px 16px;border:3px solid;border-radius:3px;
+    box-shadow:0 4px 0 rgba(0,0,0,.5);pointer-events:none;
+  }
+  .cmp-toast.good{color:#bfe39a;border-color:#3f6d39;background:rgba(18,28,14,.96);}
+  .cmp-toast.bad{color:#f0a596;border-color:#a82a1c;background:rgba(28,15,13,.96);}
+  .stamps-hint{flex:0 0 100%;font-family:"VT323",monospace;font-size:15px;color:var(--ink-dim);letter-spacing:1px;margin-bottom:2px;}
+  /* red ink official seal stamped on a document */
+  .seal{
+    position:absolute;right:10px;bottom:8px;width:62px;height:62px;border-radius:50%;
+    border:3px double var(--stamp-red);color:var(--stamp-red);
+    display:flex;align-items:center;justify-content:center;text-align:center;
+    font-family:"VT323",monospace;font-size:13px;line-height:1;letter-spacing:1px;
+    transform:rotate(-14deg);opacity:.62;text-transform:uppercase;padding:6px;
+  }
+  .speech{
+    background:var(--paper);color:#2a2417;border:2px solid #8d8262;
+    padding:9px 13px;margin:0 0 14px;position:relative;
+    font-family:"Special Elite",monospace;font-size:16px;
+    box-shadow:3px 4px 0 rgba(0,0,0,.45);
+  }
+  .speech:before{ /* little speech tail */
+    content:"";position:absolute;left:22px;top:-9px;width:14px;height:9px;
+    background:var(--paper);border:2px solid #8d8262;border-bottom:none;
+    clip-path:polygon(0 100%,50% 0,100% 100%);
+  }
+  .speech b{color:#5a3a14;}
+
+  /* actions = rubber stamps on the desk */
+  .actions{
+    border-top:4px solid var(--line);
+    background:linear-gradient(var(--desk),var(--desk-dark));
+    padding:10px 14px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .stamp{
+    flex:1;min-width:120px;
+    border:3px solid var(--line);
+    background:var(--panel2);
+    background-image:linear-gradient(rgba(255,255,255,.06),rgba(0,0,0,.18));
+    color:var(--ink);
+    padding:9px 6px 8px;
+    font-family:"VT323",monospace;font-size:21px;font-weight:bold;
+    text-transform:uppercase;letter-spacing:1px;
+    cursor:pointer;border-radius:2px;
+    box-shadow:0 4px 0 #000;
+    transition:transform .05s, box-shadow .05s;
+  }
+  .stamp:hover{transform:translateY(-1px);filter:brightness(1.08);}
+  .stamp:active{transform:translateY(4px);box-shadow:0 0 0 #000;}
+  .stamp small{display:block;font-family:"VT323",monospace;font-weight:normal;font-size:14px;color:var(--ink-dim);letter-spacing:0;margin-top:1px;text-transform:none;}
+  .stamp.approve{border-color:var(--stamp-green);color:#bfe39a;}
+  .stamp.ctr{border-color:var(--blue);color:#a9d3e6;}
+  .stamp.sar{border-color:var(--amber);color:#ecc968;}
+  .stamp.block{border-color:var(--stamp-red);color:#f0a596;}
+  .stamp:disabled{opacity:.4;cursor:not-allowed;box-shadow:0 4px 0 #000;}
+
+  /* overlays */
+  .overlay{
+    position:absolute;inset:0;background:rgba(10,11,9,.94);
+    display:flex;align-items:center;justify-content:center;justify-content:safe center;flex-direction:column;
+    text-align:center;padding:22px;z-index:20;overflow-y:auto;
+  }
+  .overlay h1{color:var(--amber);letter-spacing:3px;margin:0 0 6px;}
+  .overlay h2{color:var(--ink);margin:0 0 14px;font-weight:normal;}
+  .overlay p{max-width:560px;color:var(--ink-dim);}
+  .overlay .big{font-size:60px;margin-bottom:10px;}
+  /* the BSA Officer who reacts to your day */
+  .boss{
+    display:flex;gap:14px;align-items:center;max-width:560px;margin:8px auto 2px;text-align:left;
+    background:#1b1f17;border:2px solid var(--line);padding:12px;border-radius:4px;
+  }
+  .boss-portrait{
+    width:84px;height:98px;flex:0 0 84px;background:#8d978c;border:3px solid var(--line);
+    padding:3px;display:flex;align-items:flex-end;justify-content:center;
+  }
+  .boss-portrait canvas{ width:78px;height:auto;image-rendering:pixelated; }
+  .boss-speech{font-family:"Special Elite",monospace;font-size:16px;color:#e7e2d0;font-style:italic;line-height:1.3;}
+  .boss-name{font-family:"VT323",monospace;font-style:normal;font-size:19px;letter-spacing:1px;margin-bottom:5px;}
+  .boss.proud{border-color:var(--green);}      .boss.proud .boss-name{color:#9bdc6e;}
+  .boss.sad  {border-color:var(--amber);}       .boss.sad   .boss-name{color:#e0bb52;}
+  .boss.fired{border-color:var(--stamp-red);animation:shake .4s ease 2;} .boss.fired .boss-name{color:#e8604a;}
+  @keyframes shake{25%{transform:translateX(-4px);}75%{transform:translateX(4px);}}
+  .ledger-summary{
+    background:#1c1f17;border:1px solid var(--line);padding:10px 14px;max-width:340px;margin:8px auto;
+    font-family:"VT323",monospace;font-size:17px;color:#d7ddd0;text-align:left;
+  }
+  .ledger-summary>div{padding:1px 0;}
+  .ledger-summary .ls-total{border-top:1px solid var(--line);margin-top:5px;padding-top:5px;color:#cBa24a;}
+  button.cta{
+    margin-top:18px;background:var(--amber);color:#1a1c1a;border:none;
+    padding:12px 26px;font-family:inherit;font-weight:bold;font-size:16px;
+    letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:3px;
+  }
+  button.cta:hover{background:#e0b14a;}
+  button.cta.alt{background:#3a4038;color:#d7ddd0;}
+  button.cta.alt:hover{background:#49514599;}
+  .end-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+  /* ---- Leaderboard + score entry ---- */
+  .lb-wrap{max-width:380px;margin:10px auto 4px;text-align:left;}
+  .lb-wrap h3{color:var(--amber);font-family:"VT323",monospace;letter-spacing:2px;font-size:20px;margin:0 0 6px;text-align:center;}
+  .lb-row{display:grid;grid-template-columns:26px 1fr auto auto;gap:10px;align-items:center;
+    font-family:"VT323",monospace;font-size:18px;color:#d7ddd0;padding:3px 8px;border-bottom:1px solid #20251d;}
+  .lb-row .lb-rank{color:var(--ink-dim);text-align:right;}
+  .lb-row .lb-name{letter-spacing:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lb-row .lb-day{color:#9bdc6e;}
+  .lb-row .lb-pay{color:#cBa24a;}
+  .lb-row.me{background:rgba(199,155,59,.18);border-radius:3px;color:#fff;}
+  .lb-row.me .lb-name{color:#ffe08a;}
+  .lb-empty{font-family:"VT323",monospace;color:var(--ink-dim);text-align:center;padding:8px;}
+  .score-entry{margin:10px auto 4px;max-width:380px;}
+  .se-row{display:flex;gap:8px;justify-content:center;margin-top:8px;}
+  .se-row input{
+    flex:1;max-width:220px;background:#11140f;border:2px solid var(--amber);color:#ffe08a;
+    font-family:"VT323",monospace;font-size:20px;letter-spacing:2px;text-transform:uppercase;
+    padding:6px 10px;border-radius:3px;text-align:center;
+  }
+  .se-row input:focus{outline:none;border-color:#ffe08a;}
+  .se-row button.cta{margin-top:0;padding:8px 16px;}
+  /* ---- Daily news ticker + most-wanted bulletin (day intro flavor) ---- */
+  .news{max-width:520px;margin:6px auto 2px;padding:7px 12px;border:1px solid #2c3326;border-left:4px solid #7d9b4e;
+    background:rgba(125,155,78,.10);font-family:"VT323",monospace;font-size:17px;color:#c6d3b3;letter-spacing:.5px;text-align:left;}
+  .news b{color:#9bdc6e;}
+  .bolo{max-width:520px;margin:6px auto 2px;padding:7px 12px;border:2px solid var(--stamp-red);border-radius:3px;
+    background:rgba(168,42,28,.14);font-family:"VT323",monospace;font-size:17px;color:#f0a596;letter-spacing:.5px;text-align:left;}
+  .bolo b{color:#ffd0c4;}
+  /* ---- Achievements (persistent badges) ---- */
+  .ach-grid{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:440px;margin:8px auto 2px;}
+  .ach{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;width:80px;min-height:78px;
+    padding:8px 5px;border:1px solid #2a3022;border-radius:4px;background:#161a13;opacity:.35;filter:grayscale(1);}
+  .ach.on{opacity:1;filter:none;border-color:var(--amber);background:#1d2117;}
+  .ach .ach-i{font-size:24px;line-height:1.35;height:1.35em;}
+  .ach .ach-t{font-family:"VT323",monospace;font-size:13px;line-height:1.1;color:#c6cdba;margin-top:4px;text-align:center;letter-spacing:.5px;}
+  .ach-toast{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:70;
+    display:flex;gap:10px;align-items:center;background:#1b2016;border:2px solid var(--amber);
+    box-shadow:0 6px 18px rgba(0,0,0,.5);padding:8px 14px;border-radius:4px;max-width:90%;
+    animation:achin .35s ease;}
+  .ach-toast.out{opacity:0;transition:opacity .4s;}
+  .ach-toast .ach-i{font-size:26px;}
+  .ach-toast .ach-toast-t{font-family:"VT323",monospace;font-size:15px;color:var(--amber);letter-spacing:1px;text-transform:uppercase;}
+  .ach-toast .ach-toast-d{font-family:"Special Elite",monospace;font-size:14px;color:#e7e2d0;}
+  @keyframes achin{0%{transform:translate(-50%,-14px);opacity:0;}100%{transform:translate(-50%,0);opacity:1;}}
+  /* SAR paperwork modal — a fillable government form */
+  .modal{
+    position:absolute;inset:0;background:rgba(8,9,6,.82);z-index:30;
+    display:none;align-items:center;justify-content:center;padding:18px;
+  }
+  .modal.show{display:flex;}
+  .sarform{
+    width:560px;max-width:100%;max-height:100%;overflow-y:auto;
+    background:var(--paper);color:var(--paper-ink);
+    border:3px solid #4b4632;box-shadow:0 16px 40px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.3);
+    font-family:"Special Elite","Courier New",monospace;font-size:15px;
+    padding:0 0 16px;
+  }
+  .sarform .form-head{
+    background:#3b3526;color:#e8dcb8;padding:10px 14px;
+    font-family:"VT323",monospace;letter-spacing:1px;
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:3px solid #4b4632;
+  }
+  .sarform .form-head .t{font-size:24px;text-transform:uppercase;}
+  .sarform .form-head .sub{font-size:15px;color:#bdb18a;}
+  .sarform .form-body{padding:14px 16px;}
+  .sarform .fld{margin:0 0 14px;}
+  .sarform label.lbl{
+    display:block;font-family:"VT323",monospace;font-size:18px;text-transform:uppercase;
+    letter-spacing:1px;color:#5a4b2e;border-bottom:1px solid #b3a884;margin-bottom:6px;padding-bottom:2px;
+  }
+  .sarform .ro{ /* read-only auto-filled field */
+    background:#e7dec2;border:1px dashed #9a8f6a;padding:5px 8px;color:#3a3320;font-weight:bold;
+  }
+  .sarform .flags{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;}
+  .sarform .flags .cat{
+    grid-column:1 / -1;font-family:"VT323",monospace;font-size:16px;text-transform:uppercase;
+    letter-spacing:1px;color:#8a3a2a;border-bottom:1px dashed #b3a884;margin:6px 0 1px;padding-bottom:1px;
+  }
+  .sarform .flags label{display:flex;gap:7px;align-items:flex-start;cursor:pointer;font-size:14px;line-height:1.2;padding:3px 0;}
+  .sarform .flags input{margin-top:2px;width:15px;height:15px;accent-color:#9e2b1e;flex:0 0 auto;}
+  .sarform textarea{
+    width:100%;min-height:64px;resize:vertical;background:#fbf6e6;color:#2a2417;
+    border:1px solid #9a8f6a;padding:7px 9px;font-family:"Special Elite",monospace;font-size:14px;
+  }
+  .sarform .err{color:#9e2b1e;font-family:"VT323",monospace;font-size:17px;min-height:20px;margin:2px 0 8px;}
+  .sarform .form-actions{display:flex;gap:10px;padding:0 16px;}
+  .sarform .btn{
+    flex:1;font-family:"VT323",monospace;font-size:21px;text-transform:uppercase;letter-spacing:1px;
+    padding:9px;border:3px solid var(--line);cursor:pointer;border-radius:2px;box-shadow:0 4px 0 #000;
+  }
+  .sarform .btn:active{transform:translateY(4px);box-shadow:0 0 0 #000;}
+  .sarform .btn.file{background:#3f6d39;color:#eafbe0;border-color:#1c211c;}
+  .sarform .btn.cancel{background:#6b5a3e;color:#f0e6cf;border-color:#1c211c;flex:0 0 130px;}
+  .sarform .stamprow{font-family:"VT323",monospace;font-size:15px;color:#6b5a3e;padding:0 16px 10px;}
+  .sarform.ofac{ width:480px; }
+  .ofac-screen{
+    background:#0b1410;color:#7dff9a;border:2px solid #16331f;border-radius:3px;
+    font-family:"VT323",monospace;font-size:18px;line-height:1.5;padding:12px 14px;margin-bottom:10px;
+    box-shadow:inset 0 0 14px rgba(0,0,0,.7);
+  }
+  .ofac-screen b{color:#eafff0;}
+  .ofac-screen .blink{margin-top:6px;color:#ffd95a;animation:blink 1s steps(2,end) infinite;}
+  @keyframes blink{50%{opacity:.35;}}
+
+  .verdict{
+    position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) rotate(-13deg);
+    font-family:"VT323",monospace;
+    font-size:54px;font-weight:bold;letter-spacing:5px;border:7px solid;padding:4px 24px;
+    border-radius:3px;opacity:0;pointer-events:none;text-transform:uppercase;z-index:15;
+    box-shadow:inset 0 0 0 3px currentColor;
+  }
+  .verdict.show{animation:slam .5s ease forwards;}
+  .verdict.good{color:var(--stamp-green);border-color:var(--stamp-green);}
+  .verdict.bad{color:var(--stamp-red);border-color:var(--stamp-red);}
+  @keyframes slam{0%{opacity:0;transform:translate(-50%,-50%) rotate(-12deg) scale(2.4);}60%{opacity:1;transform:translate(-50%,-50%) rotate(-12deg) scale(.95);}100%{opacity:1;transform:translate(-50%,-50%) rotate(-12deg) scale(1);}}
+  .feedback{
+    margin:0 0 12px;padding:10px 12px;border-radius:3px;font-size:13px;border:1px solid;
+  }
+  .feedback.good{background:rgba(111,143,78,.16);border-color:var(--green);color:#c4d8a6;}
+  .feedback.bad{background:rgba(168,69,47,.16);border-color:var(--red);color:#e8b8ac;}
+  .feedback b{display:block;margin-bottom:4px;letter-spacing:1px;text-transform:uppercase;}
+  .next{
+    background:var(--green);color:#11140e;border:none;padding:10px 20px;font-family:inherit;
+    font-weight:bold;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:3px;
+  }
+  .next:hover{filter:brightness(1.1);}
+  .learn-link{display:inline-block;margin-left:10px;color:#7fc0db;cursor:pointer;font-family:"VT323",monospace;font-size:16px;letter-spacing:1px;}
+  .learn-link:hover{text-decoration:underline;}
+  .progress{font-size:12px;color:var(--ink-dim);margin-bottom:10px;letter-spacing:1px;}
+  ::-webkit-scrollbar{width:10px;}
+  ::-webkit-scrollbar-track{background:#1c1f19;}
+  ::-webkit-scrollbar-thumb{background:#454a3e;border-radius:6px;}
+  .hint{font-size:11px;color:var(--ink-dim);margin-top:6px;}
+</style>
+</head>
+<body>
+<div id="game">
+  <header>
+    <div class="title">Know Your Customer&nbsp;·&nbsp;BSA/AML Unit</div>
+    <div class="stats">
+      <span>DAY <b id="stat-day">1</b></span>
+      <span>CASE <b id="stat-case">1/1</b></span>
+      <span>TIME <b id="stat-time">0:00</b></span>
+      <span>BALANCE <b id="stat-pay">$0</b></span>
+      <span>STRIKES <b class="strike" id="stat-strikes">0/4</b></span>
+      <button id="pauseBtn" title="Pause (P)">⏸</button>
+      <button id="muteBtn" title="Mute (M)">🔊</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="booth" id="booth"></div>
+    <div class="sidebar">
+      <div class="tabs">
+        <button data-tab="rules" class="active">Manual</button>
+        <button data-tab="watch">Watchlist</button>
+        <button data-tab="learn">Learn</button>
+      </div>
+      <div class="tabcontent active" id="tab-rules"></div>
+      <div class="tabcontent" id="tab-watch"></div>
+      <div class="tabcontent" id="tab-learn"></div>
+    </div>
+  </main>
+
+  <div class="actions" id="actions"></div>
+
+  <div class="verdict" id="verdict"></div>
+  <div class="overlay" id="overlay"></div>
+  <div class="modal" id="sarModal"></div>
+  <div class="pause-screen" id="pause">
+    <div class="big">⏸</div>
+    <h1>PAUSED</h1>
+    <p>The shift clock is stopped.</p>
+    <button class="cta" id="resumeBtn">Resume</button>
+  </div>
+  <div class="crt" id="crt"></div>
+</div>
+
+<script>
+/* =========================================================================
+   Know Your Customer — a Papers, Please-style Anti-Money Laundering (AML) game.
+   You are a BSA/AML Compliance Officer. Review each customer & transaction,
+   then choose the correct disposition. Rules unlock day by day.
+
+   AML facts used (sourced from FinCEN / FFIEC / FDIC / BSA):
+   - Cash transactions OVER $10,000 require a Currency Transaction Report (CTR).
+   - Suspicious activity requires a Suspicious Activity Report (SAR),
+     e-filed within 30 days of detection.
+   - Structuring / "smurfing": breaking cash into deposits just under $10k
+     to dodge the CTR threshold — itself a federal crime; file a SAR.
+   - OFAC sanctions: block transactions for sanctioned persons/entities.
+   - KYC: verify identity; ID must match the account and be unexpired.
+   - 3 stages of laundering: placement -> layering -> integration.
+   ========================================================================= */
+
+const GAME_DATE = new Date(2026, 5, 5); // Jun 5, 2026 — for ID-expiry checks
+const CTR_THRESHOLD = 10000;
+const MAX_STRIKES = 4;
+// economy + clock
+const EARN = 300;          // commission per correct disposition
+const FINE = 150;          // penalty per wrong disposition (on top of a strike)
+const SEC_PER_CASE = 16;   // shift seconds budgeted per customer (the clock only runs while you deliberate)
+const RENT = 2100;         // charged once every 3 days (days 3 and 6)
+const BILLS = { 1:["Utilities",180,"Groceries",170],
+                2:["Utilities",190,"Groceries",180,"Medicine",120],
+                3:["Utilities",200,"Groceries",190,"Medicine",140],
+                4:["Utilities",210,"Groceries",200,"Daughter's tuition",260],
+                5:["Utilities",220,"Groceries",210,"Medicine",160,"Heat",120],
+                6:["Utilities",240,"Groceries",220,"Medicine",180,"Heat",140] };
+function billsFor(day){
+  const a=BILLS[day]||BILLS[6]; let t=0; const items=[];
+  if(day%3===0){ items.push(["Rent (3-day)",RENT]); t+=RENT; }  // rent every third day
+  for(let i=0;i<a.length;i+=2){ items.push([a[i],a[i+1]]); t+=a[i+1]; }
+  // beyond the scripted week, expenses keep climbing so each day demands a cleaner sheet
+  if(day>6){ const surge = 60*(day-6); items.push(["Cost-of-living surge",surge]); t+=surge; }
+  return {items,total:t};
+}
+// ---- Difficulty curve: the job gets harder every single day ----
+// Endless mode (day >= 7): queues grow longer and the shift clock tightens.
+function casesForDay(day){ return day<6 ? 6 : Math.min(16, 8 + (day-6)); }
+function secPerCase(day){ return day<=6 ? SEC_PER_CASE : Math.max(7, SEC_PER_CASE-(day-6)); }
+
+/* ---- The compliance manual: rules unlock cumulatively ------------------ */
+const RULES = [
+  { day:1, html:`<b>APPROVE</b> routine, consistent transactions. This is the
+    bank's business — don't flag everything. Over-reporting ("defensive SARs")
+    buries real threats and is itself a citation.` },
+  { day:1, html:`<b>FILE CTR</b> for any <b>cash</b> transaction <b>over $10,000</b>.
+    A Currency Transaction Report is mandatory and routine — the customer is
+    still served. (Cash of exactly $10,000 or less does NOT require a CTR.)
+    <i>Aggregation: multiple same-day cash transactions by the same person are
+    added together toward the $10,000 threshold.</i>` },
+  { day:2, html:`<b>BLOCK</b> any customer or counterparty whose name appears on
+    the <b>OFAC Watchlist</b>. Sanctioned parties may not be transacted with —
+    no exceptions, no tipping them off.` },
+  { day:3, html:`<b>KYC</b> — the photo ID must <b>match the account</b> (name AND
+    date of birth), the <b>photo must match the person</b> at the window, and it must
+    <b>not be expired</b>. Any mismatch, wrong photo, or expired ID: <b>BLOCK</b>.
+    <i>Tip: click a field on the ID and the matching field on the account to compare.</i>` },
+  { day:4, html:`<b>Structuring / smurfing</b>: a pattern of <b>multiple cash
+    deposits just under $10,000</b> to evade the CTR threshold. This is a crime.
+    <b>FILE SAR</b>.` },
+  { day:5, html:`<b>Suspicious activity</b>: transactions <b>inconsistent with the
+    customer's known profile</b> (income, occupation, history) or funds moving
+    to/from <b>high-risk jurisdictions</b> with no business rationale.
+    <b>FILE SAR</b>.` },
+];
+
+/* ---- OFAC-style watchlist (fictional) ---------------------------------- */
+const WATCHLIST = [
+  { name:"Viktor Kozlov", note:"SDN — narcotics trafficking" },
+  { name:"Amara Diallo", note:"SDN — terrorism financing" },
+  { name:"Grigor Petrov", note:"SDN — sanctions evasion" },
+  { name:"Helix Trade Ltd", note:"Entity — proliferation finance" },
+  { name:"Reza Najafi", note:"SDN — designated regime" },
+  { name:"Brandon Wallace", note:"SDN — trafficking proceeds" },
+  { name:"Yusuf Karim", note:"SDN — terrorism financing" },
+  { name:"Dmitri Volkov", note:"SDN — sanctions evasion" },
+  { name:"Sergei Orlov", note:"SDN — corruption / kleptocracy" },
+  { name:"Olga Sokolova", note:"SDN — money laundering" },
+  { name:"Carlos Mendoza", note:"SDN — narcotics cartel" },
+  { name:"Ibrahim Nasser", note:"SDN — terrorism financing" },
+  { name:"Megan Bennett", note:"SDN — narcotics laundering" },
+  { name:"Gary Sullivan", note:"SDN — corruption / kleptocracy" },
+  { name:"Travis Doyle", note:"SDN — sanctions evasion" },
+  { name:"Tariq Hassan", note:"SDN — designated regime" },
+  { name:"Zenith Petrochem", note:"Entity — sanctioned oil trade" },
+  { name:"Liberty Freight Inc", note:"Entity — sanctions-evasion front" },
+  { name:"Eagle Crest Capital LLC", note:"Entity — fraud / laundering shell" },
+  { name:"Pavel Morozov", note:"SDN — sanctions evasion" },
+  { name:"Elena Voronova", note:"SDN — money laundering" },
+  { name:"Wesley Trent", note:"SDN — fraud proceeds" },
+  { name:"Crown Harbor Trading LLC", note:"Entity — trade-based laundering" },
+  { name:"Silk Road Logistics", note:"Entity — sanctions-evasion front" },
+  { name:"Anton Belov", note:"SDN — sanctions evasion" },
+  { name:"Farah Idris", note:"SDN — terrorism financing" },
+];
+const SANCTIONED_COUNTRIES = ["North Korea","Iran","Syria","Cuba","Crimea region"];
+const HIGH_RISK = ["Iran","North Korea","Syria","Cuba","Panama (shell)","Cayman (shell)","BVI (shell)","Seychelles (shell)","Belarus"];
+
+/* ---- Helper builders for documents ------------------------------------- */
+function money(n){ return "$"+n.toLocaleString("en-US"); }
+
+/* ===== CASE BANK =========================================================
+   Each case: who, their ID, account record, the transaction, optional
+   recent-activity log, the CORRECT disposition, and the teaching reason.
+   correct ∈ APPROVE | CTR | SAR | BLOCK
+   minDay = earliest day this case can appear (so rules are known).
+   ========================================================================= */
+const CASES = [
+  /* ===== DAY 1 — basics: APPROVE vs CTR ($10k cash threshold) ===== */
+  { minDay:1, photo:"👩", name:"Maria Lopez", id:{type:"Driver License",exp:"2029-04-12",name:"Maria Lopez",dob:"1988-04-12"},
+    acct:{name:"Maria Lopez",dob:"1988-04-12",occ:"Teacher",income:"$58,000/yr",risk:"LOW"},
+    speech:"Just depositing my paycheck, thanks.",
+    txn:{type:"Check Deposit",amount:2400,cash:false,detail:"Payroll check"},
+    correct:"APPROVE", reason:"Routine payroll check, consistent with a teacher's profile. Not cash, well under $10,000. Approve." },
+
+  { minDay:1, photo:"🧔", name:"Daniel Brooks", id:{type:"Passport",exp:"2031-01-01",name:"Daniel Brooks",dob:"1975-09-30"},
+    acct:{name:"Daniel Brooks",dob:"1975-09-30",occ:"Auto Dealer",income:"$140,000/yr",risk:"MED"},
+    speech:"Cash from a car sale — $14,500.",
+    txn:{type:"Cash Deposit",amount:14500,cash:true,detail:"Proceeds of vehicle sale"},
+    correct:"CTR", reason:"Cash deposit OVER $10,000 → a CTR is mandatory. The source (auto sale) is plausible for a dealer, so it's not suspicious — file the CTR and serve the customer." },
+
+  { minDay:1, photo:"👵", name:"Edith Warren", id:{type:"State ID",exp:"2028-02-02",name:"Edith Warren",dob:"1949-02-02"},
+    acct:{name:"Edith Warren",dob:"1949-02-02",occ:"Retired",income:"Pension",risk:"LOW"},
+    speech:"I'd like to withdraw $300 for groceries.",
+    txn:{type:"Cash Withdrawal",amount:300,cash:true,detail:"Personal use"},
+    correct:"APPROVE", reason:"Tiny routine withdrawal, far below any threshold. No red flags. Approve." },
+
+  { minDay:1, photo:"👨", name:"Tom Becker", id:{type:"Driver License",exp:"2027-11-08",name:"Tom Becker",dob:"1990-11-08"},
+    acct:{name:"Tom Becker",dob:"1990-11-08",occ:"Contractor",income:"$72,000/yr",risk:"LOW"},
+    speech:"Cash job — exactly ten grand.",
+    txn:{type:"Cash Deposit",amount:10000,cash:true,detail:"Contracting payment"},
+    correct:"APPROVE", reason:"Trap! A CTR is required for cash OVER $10,000. Exactly $10,000 is at the line, NOT over it — no CTR required. Consistent with a contractor. Approve.",
+    hint:"Read the threshold carefully." },
+
+  { minDay:1, photo:"🧓", name:"Frank Russo", id:{type:"Driver License",exp:"2030-05-20",name:"Frank Russo",dob:"1958-05-20"},
+    acct:{name:"Frank Russo",dob:"1958-05-20",occ:"Jeweler",income:"$180,000/yr",risk:"MED"},
+    speech:"Sold a diamond set today — $25,000 in cash.",
+    txn:{type:"Cash Deposit",amount:25000,cash:true,detail:"Proceeds of jewelry sale"},
+    correct:"CTR", reason:"Cash far over $10,000 → mandatory CTR. A jeweler taking large cash for goods is ordinary business. File the CTR and serve him." },
+
+  { minDay:1, photo:"👩‍💻", name:"Priya Anand", id:{type:"Driver License",exp:"2032-07-15",name:"Priya Anand",dob:"1993-07-15"},
+    acct:{name:"Priya Anand",dob:"1993-07-15",occ:"Software Engineer",income:"$160,000/yr",risk:"LOW"},
+    speech:"Depositing my bonus check.",
+    txn:{type:"Check Deposit",amount:8500,cash:false,detail:"Employer bonus check"},
+    correct:"APPROVE", reason:"A check (not cash) for a bonus, consistent with a well-paid engineer. No threshold triggered. Approve." },
+
+  { minDay:1, photo:"🧑", name:"Grace Lin", id:{type:"State ID",exp:"2029-10-02",name:"Grace Lin",dob:"1999-10-02"},
+    acct:{name:"Grace Lin",dob:"1999-10-02",occ:"Barista",income:"$31,000/yr",risk:"LOW"},
+    speech:"Just need forty bucks out.",
+    txn:{type:"Cash Withdrawal",amount:40,cash:true,detail:"Personal use"},
+    correct:"APPROVE", reason:"Trivial $40 withdrawal. Nothing to see. Approve." },
+
+  { minDay:1, photo:"👨‍🌾", name:"Hector Diaz", id:{type:"Driver License",exp:"2030-03-11",name:"Hector Diaz",dob:"1970-03-11"},
+    acct:{name:"Hector Diaz",dob:"1970-03-11",occ:"Farmer",income:"$95,000/yr",risk:"LOW"},
+    speech:"Cash from the crop sale at market — $11,200.",
+    txn:{type:"Cash Deposit",amount:11200,cash:true,detail:"Produce market sales"},
+    correct:"CTR", reason:"Cash over $10,000 → CTR required. Selling produce for cash at market is legitimate for a farmer. File the CTR and serve him." },
+
+  /* ===== DAY 2 — OFAC sanctions screening ===== */
+  { minDay:2, photo:"🧔", name:"Viktor Kozlov", id:{type:"Passport",exp:"2030-06-21",name:"Viktor Kozlov",dob:"1971-06-21"},
+    acct:{name:"Viktor Kozlov",dob:"1971-06-21",occ:"Import/Export",income:"$200,000/yr",risk:"HIGH"},
+    speech:"A simple wire to my partner. Nothing unusual.",
+    txn:{type:"Wire Transfer",amount:8000,cash:false,detail:"To Helix Trade Ltd"},
+    correct:"BLOCK", reason:"The customer 'Viktor Kozlov' is on the OFAC watchlist (SDN). The counterparty 'Helix Trade Ltd' is ALSO listed. Block — do not transact with sanctioned parties." },
+
+  { minDay:2, photo:"👩", name:"Sara Mwangi", id:{type:"Passport",exp:"2029-03-03",name:"Sara Mwangi",dob:"1986-07-19"},
+    acct:{name:"Sara Mwangi",dob:"1986-07-19",occ:"Nurse",income:"$66,000/yr",risk:"LOW"},
+    speech:"Wiring $1,200 to my mother abroad.",
+    txn:{type:"Wire Transfer",amount:1200,cash:false,detail:"To family in Kenya"},
+    correct:"APPROVE", reason:"Not on any list, modest amount, plausible family remittance. Kenya is not sanctioned. Approve — don't punish ordinary cross-border support." },
+
+  { minDay:2, photo:"🧑", name:"Reza Najafi", id:{type:"Passport",exp:"2028-12-12",name:"Reza Najafi",dob:"1980-12-12"},
+    acct:{name:"Reza Najafi",dob:"1980-12-12",occ:"Consultant",income:"$95,000/yr",risk:"HIGH"},
+    speech:"Standard payment, please process it.",
+    txn:{type:"Wire Transfer",amount:4500,cash:false,detail:"To overseas account"},
+    correct:"BLOCK", reason:"'Reza Najafi' matches the OFAC SDN watchlist. Regardless of amount, block sanctioned individuals." },
+
+  { minDay:2, photo:"🧕", name:"Amara Diallo", id:{type:"Passport",exp:"2029-08-08",name:"Amara Diallo",dob:"1984-08-08"},
+    acct:{name:"Amara Diallo",dob:"1984-08-08",occ:"Trader",income:"$110,000/yr",risk:"HIGH"},
+    speech:"Please send this through quickly.",
+    txn:{type:"Wire Transfer",amount:3000,cash:false,detail:"To overseas beneficiary"},
+    correct:"BLOCK", reason:"'Amara Diallo' is a listed SDN (terrorism financing). Block — and never tip off a sanctioned party that they've been flagged." },
+
+  { minDay:2, photo:"👨", name:"Grigor Petrov", id:{type:"Passport",exp:"2031-02-02",name:"Grigor Petrov",dob:"1969-02-02"},
+    acct:{name:"Grigor Petrov",dob:"1969-02-02",occ:"Businessman",income:"$300,000/yr",risk:"HIGH"},
+    speech:"A routine transfer to an associate.",
+    txn:{type:"Wire Transfer",amount:6000,cash:false,detail:"To overseas account"},
+    correct:"BLOCK", reason:"'Grigor Petrov' is on the OFAC watchlist (sanctions evasion). Block the transaction." },
+
+  { minDay:2, photo:"👨‍💼", name:"Liam O'Connor", id:{type:"Passport",exp:"2030-11-30",name:"Liam O'Connor",dob:"1982-11-30"},
+    acct:{name:"Liam O'Connor",dob:"1982-11-30",occ:"Accountant",income:"$90,000/yr",risk:"LOW"},
+    speech:"Sending money to my brother in Dublin.",
+    txn:{type:"Wire Transfer",amount:2000,cash:false,detail:"To family in Ireland"},
+    correct:"APPROVE", reason:"Not listed, ordinary family wire, Ireland is not sanctioned. Approve." },
+
+  { minDay:2, photo:"👩‍🎨", name:"Nina Berg", id:{type:"Driver License",exp:"2029-04-19",name:"Nina Berg",dob:"1990-04-19"},
+    acct:{name:"Nina Berg",dob:"1990-04-19",occ:"Gallery Owner",income:"$120,000/yr",risk:"MED"},
+    speech:"Payment to one of my suppliers.",
+    txn:{type:"Wire Transfer",amount:5000,cash:false,detail:"To Helix Trade Ltd"},
+    correct:"BLOCK", reason:"The customer is clean, but you must screen the COUNTERPARTY too — 'Helix Trade Ltd' is a listed entity. Block the transaction.",
+    hint:"Check the beneficiary against the watchlist, not just the sender." },
+
+  { minDay:2, photo:"👵", name:"Yan Li", id:{type:"Passport",exp:"2028-09-09",name:"Yan Li",dob:"1955-09-09"},
+    acct:{name:"Yan Li",dob:"1955-09-09",occ:"Retired",income:"Pension",risk:"LOW"},
+    speech:"A little money for my grandson's tuition.",
+    txn:{type:"Wire Transfer",amount:900,cash:false,detail:"To family in China"},
+    correct:"APPROVE", reason:"Not listed, small family transfer, China is not a sanctioned jurisdiction. Approve." },
+
+  { minDay:2, photo:"🤵", name:"Yusuf Karim", id:{type:"Passport",exp:"2030-01-01",name:"Yusuf Karim",dob:"1978-01-01"},
+    acct:{name:"Yusuf Karim",dob:"1978-01-01",occ:"Merchant",income:"$140,000/yr",risk:"HIGH"},
+    speech:"Process my transfer, please.",
+    txn:{type:"Wire Transfer",amount:7500,cash:false,detail:"To overseas account"},
+    correct:"BLOCK", reason:"'Yusuf Karim' is a listed SDN. Block — sanctions screening applies regardless of the amount or stated purpose." },
+
+  { minDay:2, photo:"👨", name:"Brandon Wallace", id:{type:"Driver License",exp:"2030-06-15",name:"Brandon Wallace",dob:"1985-06-15"},
+    acct:{name:"Brandon Wallace",dob:"1985-06-15",occ:"Consultant",income:"$130,000/yr",risk:"HIGH"},
+    speech:"Just moving some money to my other account. Quick one.",
+    txn:{type:"Wire Transfer",amount:7400,cash:false,detail:"To offshore account"},
+    correct:"BLOCK", reason:"'Brandon Wallace' is on the OFAC SDN list. Sanctions screening is name-based — anyone whose name matches the list is blocked, no exceptions. Block.",
+    hint:"Screen every name against the list — no one is exempt." },
+
+  { minDay:2, photo:"👩", name:"Megan Bennett", id:{type:"Driver License",exp:"2031-09-09",name:"Megan Bennett",dob:"1990-09-09"},
+    acct:{name:"Megan Bennett",dob:"1990-09-09",occ:"Realtor",income:"$140,000/yr",risk:"HIGH"},
+    speech:"Wiring a deposit for a property closing.",
+    txn:{type:"Wire Transfer",amount:6800,cash:false,detail:"To escrow account"},
+    correct:"BLOCK", reason:"'Megan Bennett' matches the SDN watchlist (narcotics laundering). The all-American name and a plausible story don't change the hit. Block." },
+
+  { minDay:2, photo:"🧓", name:"Gary Sullivan", id:{type:"Passport",exp:"2029-03-03",name:"Gary Sullivan",dob:"1961-03-03"},
+    acct:{name:"Gary Sullivan",dob:"1961-03-03",occ:"Retired Executive",income:"$300,000/yr",risk:"HIGH"},
+    speech:"A transfer to an old business partner overseas.",
+    txn:{type:"Wire Transfer",amount:9500,cash:false,detail:"To overseas account"},
+    correct:"BLOCK", reason:"'Gary Sullivan' is a listed SDN. Block — regardless of how respectable the customer seems." },
+
+  { minDay:2, photo:"👩", name:"Karen Whitfield", id:{type:"Driver License",exp:"2030-12-01",name:"Karen Whitfield",dob:"1979-12-01"},
+    acct:{name:"Karen Whitfield",dob:"1979-12-01",occ:"Operations Manager",income:"$95,000/yr",risk:"MED"},
+    speech:"Paying one of our company's vendors.",
+    txn:{type:"Wire Transfer",amount:5600,cash:false,detail:"To Liberty Freight Inc"},
+    correct:"BLOCK", reason:"The customer is clean, but the BENEFICIARY 'Liberty Freight Inc' is a listed entity. Screen the counterparty too — block it.",
+    hint:"Check who the money is going TO, not just the sender." },
+
+  { minDay:2, photo:"👩", name:"Jessica Miller", id:{type:"Driver License",exp:"2031-04-04",name:"Jessica Miller",dob:"1992-04-04"},
+    acct:{name:"Jessica Miller",dob:"1992-04-04",occ:"Teacher",income:"$58,000/yr",risk:"LOW"},
+    speech:"Sending money to my brother studying abroad.",
+    txn:{type:"Wire Transfer",amount:1600,cash:false,detail:"To family in Canada"},
+    correct:"APPROVE", reason:"Not listed, modest family transfer, destination not sanctioned. An American name is neither a red flag nor a free pass — she's simply not on the list. Approve." },
+
+  { minDay:2, photo:"👨", name:"Kevin Pratt", id:{type:"Driver License",exp:"2030-08-08",name:"Kevin Pratt",dob:"1986-08-08"},
+    acct:{name:"Kevin Pratt",dob:"1986-08-08",occ:"Software Engineer",income:"$165,000/yr",risk:"LOW"},
+    speech:"Paying an overseas freelancer who built our app.",
+    txn:{type:"Wire Transfer",amount:4200,cash:false,detail:"To contractor in Portugal"},
+    correct:"APPROVE", reason:"Not on the list, legitimate business payment, Portugal isn't sanctioned. Approve." },
+
+  /* ===== DAY 3 — KYC: ID must match account & be unexpired ===== */
+  { minDay:3, photo:"👨", name:"James Hale", id:{type:"Driver License",exp:"2021-05-17",name:"James Hale",dob:"1983-05-17"},
+    acct:{name:"James Hale",dob:"1983-05-17",occ:"Engineer",income:"$110,000/yr",risk:"LOW"},
+    speech:"Here's my ID. Withdrawing $4,000.",
+    txn:{type:"Cash Withdrawal",amount:4000,cash:true,detail:"Personal"},
+    flags:[15], also:["SAR"], correct:"BLOCK", reason:"The driver license expired in 2021 — today is 2026. An expired ID fails KYC verification. Block (or file a SAR citing the invalid ID) and request valid documents.",
+    hint:"Check the ID expiry date against today (2026)." },
+
+  { minDay:3, photo:"👩", name:"Karen Diaz", id:{type:"Driver License",exp:"2030-08-04",name:"Karina Diaz",dob:"1992-08-04"},
+    acct:{name:"Karen Diaz",dob:"1992-08-04",occ:"Designer",income:"$80,000/yr",risk:"LOW"},
+    speech:"It's my account, I promise.",
+    txn:{type:"Cash Withdrawal",amount:1500,cash:true,detail:"Personal"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"Name mismatch: ID says 'Karina Diaz' but the account is 'Karen Diaz'. KYC requires the ID to match the account. Block (or file a SAR for the identity discrepancy) and request matching documents.",
+    hint:"Compare the ID name to the account name letter by letter." },
+
+  { minDay:3, photo:"🧔", name:"Omar Said", id:{type:"Passport",exp:"2031-10-25",name:"Omar Said",dob:"1981-10-25"},
+    acct:{name:"Omar Said",dob:"1979-10-25",occ:"Restaurateur",income:"$130,000/yr",risk:"MED"},
+    speech:"Depositing the weekend's card settlements.",
+    txn:{type:"Check Deposit",amount:6200,cash:false,detail:"Card processor settlement"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"DOB mismatch: ID shows 1981, account shows 1979. Identity can't be verified — block (or file a SAR for the identity discrepancy) and request correct documents, even though the transaction itself looks ordinary.",
+    hint:"The dates of birth don't match." },
+
+  { minDay:3, photo:"👷", name:"Greg Foster", id:{type:"Driver License",exp:"2028-03-14",name:"Greg Foster",dob:"1968-03-14"},
+    acct:{name:"Greg Foster",dob:"1968-03-14",occ:"Plumber",income:"$70,000/yr",risk:"LOW"},
+    speech:"Cash from this week's jobs.",
+    txn:{type:"Cash Deposit",amount:3100,cash:true,detail:"Trade income"},
+    correct:"APPROVE", reason:"ID matches the account and is valid. Cash well under $10k and consistent with a plumber. No red flags. Approve." },
+
+  { minDay:3, photo:"👵", name:"Rosa Mendez", id:{type:"Passport",exp:"2019-06-01",name:"Rosa Mendez",dob:"1951-06-01"},
+    acct:{name:"Rosa Mendez",dob:"1951-06-01",occ:"Retired",income:"Pension",risk:"LOW"},
+    speech:"I want to move $2,000 to my savings.",
+    txn:{type:"Transfer",amount:2000,cash:false,detail:"Internal to savings"},
+    flags:[15], also:["SAR"], correct:"BLOCK", reason:"The passport expired in 2019 — long past today's 2026. Even a harmless internal transfer requires valid identification. Block (or file a SAR citing the expired ID) and request a current one.",
+    hint:"The transaction is fine — but is the ID still valid?" },
+
+  { minDay:3, photo:"👨", name:"John Smith", id:{type:"Driver License",exp:"2030-12-12",name:"Jon Smith",dob:"1987-12-12"},
+    acct:{name:"John Smith",dob:"1987-12-12",occ:"Sales Rep",income:"$75,000/yr",risk:"LOW"},
+    speech:"Quick deposit, I'm in a hurry.",
+    txn:{type:"Check Deposit",amount:1800,cash:false,detail:"Commission check"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"Subtle name mismatch: ID 'Jon Smith' vs account 'John Smith'. A one-letter difference still fails KYC — names must match exactly. Block (or file a SAR for the identity discrepancy) and verify.",
+    hint:"Spell out both names carefully." },
+
+  { minDay:3, photo:"🧔", name:"Anton Vasiliev", id:{type:"Driver License",exp:"2030-04-04",name:"Anton Vasiliev",dob:"1986-04-04"},
+    acct:{name:"Anton Vasiliev",dob:"1986-04-04",occ:"Logistics",income:"$84,000/yr",risk:"MED"},
+    idPhotoName:"Boris Petrov-DECOY",  // the photo on the card is NOT the man at the window
+    speech:"Yeah, that's me on the card. Withdrawing $5,000.",
+    txn:{type:"Cash Withdrawal",amount:5000,cash:true,detail:"Personal"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"The photo on the ID does NOT match the person standing at your window — a forged or stolen document. Name and dates line up, but the face is someone else. Block (or file a SAR for the identity discrepancy) and escalate.",
+    hint:"Compare the face at the window to the photo on the ID." },
+
+  { minDay:3, photo:"👩‍🏫", name:"Mei Tanaka", id:{type:"Driver License",exp:"2031-05-05",name:"Mei Tanaka",dob:"1989-05-05"},
+    acct:{name:"Mei Tanaka",dob:"1989-05-05",occ:"Professor",income:"$98,000/yr",risk:"LOW"},
+    speech:"Depositing a research stipend check.",
+    txn:{type:"Check Deposit",amount:4200,cash:false,detail:"University stipend"},
+    correct:"APPROVE", reason:"ID matches name and DOB, is unexpired, and the transaction fits her profile. Clean KYC. Approve." },
+
+  { minDay:3, photo:"🧓", name:"Paul Adler", id:{type:"State ID",exp:"2029-02-20",name:"Paul Adler",dob:"1962-02-20"},
+    acct:{name:"Paul Adler",dob:"1962-02-20",occ:"Accountant",income:"$88,000/yr",risk:"LOW"},
+    speech:"Eight hundred dollars out, please.",
+    txn:{type:"Cash Withdrawal",amount:800,cash:true,detail:"Personal"},
+    correct:"APPROVE", reason:"Valid, matching ID and a small routine withdrawal. Nothing wrong. Approve." },
+
+  /* ===== DAY 4 — structuring / smurfing ===== */
+  { minDay:4, photo:"🧑", name:"Lena Park", id:{type:"Driver License",exp:"2029-01-09",name:"Lena Park",dob:"1991-01-09"},
+    acct:{name:"Lena Park",dob:"1991-01-09",occ:"Barista",income:"$34,000/yr",risk:"LOW"},
+    speech:"Just another little deposit.",
+    txn:{type:"Cash Deposit",amount:9600,cash:true,detail:"Cash"},
+    log:["Jun 02 — Cash deposit $9,800","Jun 03 — Cash deposit $9,500","Jun 04 — Cash deposit $9,700","Today  — Cash deposit $9,600"],
+    ring:"Meridian", flags:[0,2], correct:"SAR", reason:"Classic STRUCTURING / smurfing: four cash deposits all just under $10,000 on consecutive days — deliberately dodging the CTR threshold. Wildly inconsistent with a barista's income. File a SAR." },
+
+  { minDay:4, photo:"👨", name:"Carl Nguyen", id:{type:"Driver License",exp:"2030-06-06",name:"Carl Nguyen",dob:"1984-06-06"},
+    acct:{name:"Carl Nguyen",dob:"1984-06-06",occ:"Store Owner",income:"$120,000/yr",risk:"MED"},
+    speech:"Friday's register takings.",
+    txn:{type:"Cash Deposit",amount:9900,cash:true,detail:"Retail cash sales"},
+    log:["May 30 — Cash deposit $8,200","Jun 02 — Cash deposit $7,400","Jun 05 — Cash deposit $9,900"],
+    correct:"APPROVE", reason:"Tempting, but this is a cash-intensive retail business with VARYING amounts tied to daily sales, comfortably explained by income. No consistent 'just under $10k' pattern. Approve — flagging legitimate retail cash would be a defensive over-report.",
+    hint:"Is there a deliberate pattern, or normal business variation?" },
+
+  { minDay:4, photo:"👩‍🎓", name:"Tina Cole", id:{type:"State ID",exp:"2028-12-01",name:"Tina Cole",dob:"1995-12-01"},
+    acct:{name:"Tina Cole",dob:"1995-12-01",occ:"Student",income:"$0 (no income)",risk:"LOW"},
+    speech:"My friend asked me to deposit these for him.",
+    txn:{type:"Cash Deposit",amount:9200,cash:true,detail:"'Holding' cash for a third party"},
+    log:["Jun 01 — Cash deposit $9,400","Jun 03 — Cash deposit $9,100","Today  — Cash deposit $9,200"],
+    ring:"Meridian", flags:[0,8,2], correct:"SAR", reason:"Money-mule red flags: a no-income student making repeated just-under-$10k cash deposits for a 'friend' (third party). Structuring + acting as a conduit. File a SAR." },
+
+  { minDay:4, photo:"👨‍💼", name:"Derek Mills", id:{type:"Driver License",exp:"2029-09-09",name:"Derek Mills",dob:"1980-09-09"},
+    acct:{name:"Derek Mills",dob:"1980-09-09",occ:"Salesman",income:"$60,000/yr",risk:"MED"},
+    speech:"Just taking some cash out, like before.",
+    txn:{type:"Cash Withdrawal",amount:9500,cash:true,detail:"Cash"},
+    log:["Jun 01 — Cash withdrawal $9,700","Jun 02 — Cash withdrawal $9,600","Jun 04 — Cash withdrawal $9,800","Today  — Cash withdrawal $9,500"],
+    flags:[0], correct:"SAR", reason:"Structuring works on WITHDRAWALS too — repeated cash-outs just below $10,000 to dodge the CTR. The pattern, not the single amount, is the red flag. File a SAR." },
+
+  { minDay:4, photo:"👩", name:"Helen Wu", id:{type:"Driver License",exp:"2031-03-03",name:"Helen Wu",dob:"1977-03-03"},
+    acct:{name:"Helen Wu",dob:"1977-03-03",occ:"Restaurant Owner",income:"$150,000/yr",risk:"MED"},
+    speech:"This week's catering cash — thirteen thousand.",
+    txn:{type:"Cash Deposit",amount:13000,cash:true,detail:"Catering event payment"},
+    log:["Jun 05 — Cash deposit $13,000 (single)"],
+    correct:"CTR", reason:"One honest cash deposit over $10,000 — that's a CTR, not a SAR. She isn't hiding it under the threshold; she's openly depositing $13k. File the CTR and serve her.",
+    hint:"Over $10k in one go is a CTR. Structuring is the opposite — staying UNDER." },
+
+  { minDay:4, photo:"🧑", name:"Sam Reyes", id:{type:"Driver License",exp:"2030-07-07",name:"Sam Reyes",dob:"1993-07-07"},
+    acct:{name:"Sam Reyes",dob:"1993-07-07",occ:"Rideshare Driver",income:"$42,000/yr",risk:"MED"},
+    speech:"Spreading my deposits across your branches is just... convenient.",
+    txn:{type:"Cash Deposit",amount:9300,cash:true,detail:"Cash, Main St branch"},
+    log:["Jun 04 — $9,400 cash @ Downtown branch","Jun 04 — $9,200 cash @ Airport branch","Today — $9,300 cash @ Main St branch"],
+    ring:"Meridian", flags:[0], correct:"SAR", reason:"Same-day cash deposits just under $10k spread across MULTIPLE branches is textbook structuring designed to avoid aggregation and the CTR. File a SAR." },
+
+  /* ===== DAY 5 — suspicious activity / profile & jurisdiction ===== */
+  { minDay:5, photo:"🧔", name:"Phil Adams", id:{type:"Driver License",exp:"2029-07-07",name:"Phil Adams",dob:"1972-07-07"},
+    acct:{name:"Phil Adams",dob:"1972-07-07",occ:"Janitor",income:"$38,000/yr",risk:"LOW"},
+    speech:"Sending $48,000 overseas for a... business thing.",
+    txn:{type:"Wire Transfer",amount:48000,cash:false,detail:"To shell company, Cayman (shell)"},
+    flags:[2,3,10,13], correct:"SAR", reason:"A janitor earning $38k/yr wiring $48k to an offshore shell company with a vague rationale is grossly inconsistent with the customer profile — textbook layering. File a SAR." },
+
+  { minDay:5, photo:"👩", name:"Nadia Rahimi", id:{type:"Passport",exp:"2030-09-09",name:"Nadia Rahimi",dob:"1989-09-09"},
+    acct:{name:"Nadia Rahimi",dob:"1989-09-09",occ:"Trader",income:"$250,000/yr",risk:"HIGH"},
+    speech:"Routine settlement to my counterparty in Iran.",
+    txn:{type:"Wire Transfer",amount:15000,cash:false,detail:"To beneficiary in Iran"},
+    correct:"BLOCK", reason:"Iran is a comprehensively sanctioned jurisdiction. Regardless of how 'routine' it sounds, block the transaction — sanctions outrank ordinary profile checks.",
+    hint:"Where is the money going?" },
+
+  { minDay:5, photo:"👨‍⚕️", name:"Victor Shaw", id:{type:"Driver License",exp:"2028-02-28",name:"Victor Shaw",dob:"1981-02-28"},
+    acct:{name:"Victor Shaw",dob:"1981-02-28",occ:"Surgeon",income:"$420,000/yr",risk:"MED"},
+    speech:"Wiring $30,000 to a medical equipment supplier.",
+    txn:{type:"Wire Transfer",amount:30000,cash:false,detail:"To registered supplier, domestic"},
+    correct:"APPROVE", reason:"Large, but fully consistent with a high-earning surgeon paying a legitimate domestic supplier. High value alone is not suspicious when it fits the profile. Approve." },
+
+  { minDay:5, photo:"🧑", name:"Dana Cruz", id:{type:"Driver License",exp:"2031-04-04",name:"Dana Cruz",dob:"1996-04-04"},
+    acct:{name:"Dana Cruz",dob:"1996-04-04",occ:"Freelancer",income:"$45,000/yr",risk:"LOW"},
+    speech:"My crypto exchange payout — then I'll wire most of it right back out.",
+    txn:{type:"Wire Transfer",amount:22000,cash:false,detail:"In from exchange, immediate pass-through out to Panama (shell)"},
+    flags:[3,2,13], correct:"SAR", reason:"Rapid in-and-out 'pass-through' of $22k to a Panama shell — funds that arrive and immediately leave, far above the customer's income. Classic layering. File a SAR." },
+
+  { minDay:5, photo:"👨", name:"Bill Trent", id:{type:"Passport",exp:"2030-10-10",name:"Bill Trent",dob:"1975-10-10"},
+    acct:{name:"Bill Trent",dob:"1975-10-10",occ:"Exporter",income:"$130,000/yr",risk:"HIGH"},
+    speech:"Payment for goods to my supplier overseas.",
+    txn:{type:"Wire Transfer",amount:9000,cash:false,detail:"To beneficiary in North Korea"},
+    correct:"BLOCK", reason:"North Korea is a comprehensively sanctioned jurisdiction. The amount is small and the person is clean — doesn't matter. Block the transfer.",
+    hint:"Read the destination country." },
+
+  { minDay:5, photo:"👩‍🎓", name:"Cindy Vale", id:{type:"State ID",exp:"2032-01-01",name:"Cindy Vale",dob:"2001-01-01"},
+    acct:{name:"Cindy Vale",dob:"2001-01-01",occ:"Student",income:"$0 (no income)",risk:"LOW"},
+    speech:"I came into some money. Depositing $80,000 cash.",
+    txn:{type:"Cash Deposit",amount:80000,cash:true,detail:"Source unexplained"},
+    flags:[2,4], correct:"SAR", reason:"A no-income student suddenly depositing $80,000 in cash with no plausible source is wildly inconsistent with her profile. (A CTR is also required, but the suspicious nature means you must file a SAR.) File a SAR.",
+    hint:"Over $10k cash needs a CTR — but unexplained $80k from a student is suspicious. Which report addresses the crime?" },
+
+  { minDay:5, photo:"👨‍💼", name:"Marcus Webb", id:{type:"Driver License",exp:"2029-11-11",name:"Marcus Webb",dob:"1971-11-11"},
+    acct:{name:"Marcus Webb",dob:"1971-11-11",occ:"Corporate CFO",income:"$500,000/yr",risk:"MED"},
+    speech:"Quarterly payment to our long-standing logistics vendor.",
+    txn:{type:"Wire Transfer",amount:200000,cash:false,detail:"To established domestic vendor (on file 6 yrs)"},
+    correct:"APPROVE", reason:"Very large, but it fits: a CFO paying a known, long-standing domestic vendor for normal operations. Consistent with profile and history. Approve — size alone isn't suspicion.",
+    hint:"Does the activity match the customer's known business?" },
+
+  /* ========================= EXPANSION PACK ============================= */
+  /* ----- more DAY 1 (APPROVE vs CTR) ----- */
+  { minDay:1, photo:"👩", name:"Olivia Brennan", id:{type:"Driver License",exp:"2030-02-14",name:"Olivia Brennan",dob:"1991-02-14"},
+    acct:{name:"Olivia Brennan",dob:"1991-02-14",occ:"Nurse",income:"$72,000/yr",risk:"LOW"},
+    speech:"Depositing my paycheck and a tax refund.",
+    txn:{type:"Check Deposit",amount:4300,cash:false,detail:"Payroll + refund check"},
+    correct:"APPROVE", reason:"Ordinary checks consistent with a nurse. Not cash, under threshold. Approve." },
+
+  { minDay:1, photo:"🧔", name:"Ahmed Saleh", id:{type:"Driver License",exp:"2031-08-08",name:"Ahmed Saleh",dob:"1973-08-08"},
+    acct:{name:"Ahmed Saleh",dob:"1973-08-08",occ:"Grocer",income:"$96,000/yr",risk:"MED"},
+    speech:"The week's grocery takings — twelve thousand eight.",
+    txn:{type:"Cash Deposit",amount:12800,cash:true,detail:"Grocery store cash sales"},
+    correct:"CTR", reason:"Cash over $10,000 from a cash-intensive grocery — legitimate, but a CTR is mandatory. File it and serve him." },
+
+  { minDay:1, photo:"👵", name:"Betty Coleman", id:{type:"State ID",exp:"2028-06-30",name:"Betty Coleman",dob:"1947-06-30"},
+    acct:{name:"Betty Coleman",dob:"1947-06-30",occ:"Retired",income:"Pension",risk:"LOW"},
+    speech:"Two hundred fifty for the week, dear.",
+    txn:{type:"Cash Withdrawal",amount:250,cash:true,detail:"Personal use"},
+    correct:"APPROVE", reason:"Trivial routine withdrawal. Approve." },
+
+  { minDay:1, photo:"👨", name:"Wesley Knox", id:{type:"Driver License",exp:"2029-05-05",name:"Wesley Knox",dob:"1989-05-05"},
+    acct:{name:"Wesley Knox",dob:"1989-05-05",occ:"Electrician",income:"$78,000/yr",risk:"LOW"},
+    speech:"Cash for a rewiring job — ten thousand even.",
+    txn:{type:"Cash Deposit",amount:10000,cash:true,detail:"Contracting payment"},
+    correct:"APPROVE", reason:"Exactly $10,000 is NOT over the threshold — no CTR required. Consistent with an electrician. Approve.",
+    hint:"Over $10,000 triggers a CTR. Exactly $10,000 does not." },
+
+  { minDay:1, photo:"👩‍🍳", name:"Sofia Marchetti", id:{type:"Driver License",exp:"2030-09-21",name:"Sofia Marchetti",dob:"1984-09-21"},
+    acct:{name:"Sofia Marchetti",dob:"1984-09-21",occ:"Bakery Owner",income:"$130,000/yr",risk:"MED"},
+    speech:"Weekend cash from the bakery — sixteen four.",
+    txn:{type:"Cash Deposit",amount:16400,cash:true,detail:"Bakery cash sales"},
+    correct:"CTR", reason:"Cash well over $10,000 → CTR. A bakery taking cash is ordinary business. File the CTR." },
+
+  { minDay:1, photo:"👨", name:"Raj Patel", id:{type:"Driver License",exp:"2032-03-03",name:"Raj Patel",dob:"1990-03-03"},
+    acct:{name:"Raj Patel",dob:"1990-03-03",occ:"Pharmacist",income:"$120,000/yr",risk:"LOW"},
+    speech:"Depositing my salary check.",
+    txn:{type:"Check Deposit",amount:5500,cash:false,detail:"Payroll check"},
+    correct:"APPROVE", reason:"Routine salary check, under threshold, fits profile. Approve." },
+
+  { minDay:1, photo:"👵", name:"Dorothy Payne", id:{type:"State ID",exp:"2027-11-19",name:"Dorothy Payne",dob:"1952-11-19"},
+    acct:{name:"Dorothy Payne",dob:"1952-11-19",occ:"Retired",income:"Pension + savings",risk:"LOW"},
+    speech:"Sold my late husband's furniture — nine thousand cash.",
+    txn:{type:"Cash Deposit",amount:9000,cash:true,detail:"Estate furniture sale"},
+    correct:"APPROVE", reason:"Under $10,000, plausible one-off source. No pattern, no red flags. Approve." },
+
+  { minDay:1, photo:"👨", name:"Caleb Ford", id:{type:"Driver License",exp:"2030-07-07",name:"Caleb Ford",dob:"1986-07-07"},
+    acct:{name:"Caleb Ford",dob:"1986-07-07",occ:"Auto Mechanic",income:"$68,000/yr",risk:"LOW"},
+    speech:"Cash from engine rebuilds this month — thirteen two.",
+    txn:{type:"Cash Deposit",amount:13200,cash:true,detail:"Repair shop cash"},
+    correct:"CTR", reason:"Cash over $10,000 → CTR required; consistent with a busy mechanic. File it." },
+
+  /* ----- more DAY 2 (sanctions) ----- */
+  { minDay:2, photo:"🧔", name:"Dmitri Volkov", id:{type:"Passport",exp:"2031-04-04",name:"Dmitri Volkov",dob:"1968-04-04"},
+    acct:{name:"Dmitri Volkov",dob:"1968-04-04",occ:"Investor",income:"$400,000/yr",risk:"HIGH"},
+    speech:"Move this to my holding company, quickly.",
+    txn:{type:"Wire Transfer",amount:9500,cash:false,detail:"To offshore holding"},
+    correct:"BLOCK", reason:"'Dmitri Volkov' is a listed SDN (sanctions evasion). Block — and don't be tempted by the offer." },
+
+  { minDay:2, photo:"👨", name:"Sergei Orlov", id:{type:"Passport",exp:"2030-12-01",name:"Sergei Orlov",dob:"1965-12-01"},
+    acct:{name:"Sergei Orlov",dob:"1965-12-01",occ:"Businessman",income:"$1,200,000/yr",risk:"HIGH"},
+    speech:"A routine transfer. I'm a busy man.",
+    txn:{type:"Wire Transfer",amount:7000,cash:false,detail:"To overseas account"},
+    correct:"BLOCK", reason:"'Sergei Orlov' is on the OFAC list (kleptocracy/corruption). Block regardless of amount." },
+
+  { minDay:2, photo:"👩", name:"Olga Sokolova", id:{type:"Passport",exp:"2029-05-15",name:"Olga Sokolova",dob:"1982-05-15"},
+    acct:{name:"Olga Sokolova",dob:"1982-05-15",occ:"Consultant",income:"$220,000/yr",risk:"HIGH"},
+    speech:"Please process my payment.",
+    txn:{type:"Wire Transfer",amount:5200,cash:false,detail:"To overseas account"},
+    correct:"BLOCK", reason:"'Olga Sokolova' is a listed SDN (money laundering). Block." },
+
+  { minDay:2, photo:"🧔", name:"Carlos Mendoza", id:{type:"Passport",exp:"2030-02-02",name:"Carlos Mendoza",dob:"1979-02-02"},
+    acct:{name:"Carlos Mendoza",dob:"1979-02-02",occ:"Trader",income:"$300,000/yr",risk:"HIGH"},
+    speech:"Just send it. Today.",
+    txn:{type:"Wire Transfer",amount:9900,cash:false,detail:"To overseas account"},
+    correct:"BLOCK", reason:"'Carlos Mendoza' is a listed SDN (narcotics cartel). Block the transaction." },
+
+  { minDay:2, photo:"🧔", name:"Ibrahim Nasser", id:{type:"Passport",exp:"2028-08-20",name:"Ibrahim Nasser",dob:"1986-08-20"},
+    acct:{name:"Ibrahim Nasser",dob:"1986-08-20",occ:"Merchant",income:"$90,000/yr",risk:"HIGH"},
+    speech:"For my supplier abroad.",
+    txn:{type:"Wire Transfer",amount:3300,cash:false,detail:"To overseas beneficiary"},
+    correct:"BLOCK", reason:"'Ibrahim Nasser' matches the SDN watchlist (terrorism financing). Block." },
+
+  { minDay:2, photo:"👨", name:"Diego Romero", id:{type:"Driver License",exp:"2030-06-06",name:"Diego Romero",dob:"1988-06-06"},
+    acct:{name:"Diego Romero",dob:"1988-06-06",occ:"Importer",income:"$140,000/yr",risk:"MED"},
+    speech:"Paying an oil supplier I work with.",
+    txn:{type:"Wire Transfer",amount:8800,cash:false,detail:"To Zenith Petrochem"},
+    correct:"BLOCK", reason:"The customer is clean, but the BENEFICIARY 'Zenith Petrochem' is a sanctioned entity. Screen counterparties too — block it.",
+    hint:"Check who the money is going TO." },
+
+  { minDay:2, photo:"👩", name:"Hannah Cohen", id:{type:"Passport",exp:"2031-01-09",name:"Hannah Cohen",dob:"1990-01-09"},
+    acct:{name:"Hannah Cohen",dob:"1990-01-09",occ:"Teacher",income:"$60,000/yr",risk:"LOW"},
+    speech:"Sending money to my sister overseas.",
+    txn:{type:"Wire Transfer",amount:1500,cash:false,detail:"To family in Israel"},
+    correct:"APPROVE", reason:"Not listed, small family remittance, destination not sanctioned. Approve." },
+
+  { minDay:2, photo:"👨‍💼", name:"Pierre Dubois", id:{type:"Passport",exp:"2030-10-10",name:"Pierre Dubois",dob:"1981-10-10"},
+    acct:{name:"Pierre Dubois",dob:"1981-10-10",occ:"Wine Importer",income:"$160,000/yr",risk:"LOW"},
+    speech:"Paying my vineyard supplier in Bordeaux.",
+    txn:{type:"Wire Transfer",amount:2500,cash:false,detail:"To supplier in France"},
+    correct:"APPROVE", reason:"Not listed, ordinary commercial payment to France. Approve." },
+
+  { minDay:2, photo:"🧔", name:"Mohammed Ali", id:{type:"Passport",exp:"2029-07-07",name:"Mohammed Ali",dob:"1984-07-07"},
+    acct:{name:"Mohammed Ali",dob:"1984-07-07",occ:"Engineer",income:"$95,000/yr",risk:"LOW"},
+    speech:"A little support for my parents back home.",
+    txn:{type:"Wire Transfer",amount:1000,cash:false,detail:"To family in Egypt"},
+    correct:"APPROVE", reason:"Not on any list, small family transfer, Egypt is not sanctioned. Screen the full name against the list — no hit here. Approve." },
+
+  /* ----- more DAY 3 (KYC) ----- */
+  { minDay:3, photo:"👴", name:"Walter Boyd", id:{type:"Driver License",exp:"2023-03-01",name:"Walter Boyd",dob:"1955-03-01"},
+    acct:{name:"Walter Boyd",dob:"1955-03-01",occ:"Retired",income:"Pension",risk:"LOW"},
+    speech:"Taking out two thousand for repairs.",
+    txn:{type:"Cash Withdrawal",amount:2000,cash:true,detail:"Personal"},
+    flags:[15], also:["SAR"], correct:"BLOCK", reason:"The license expired in 2023 — today is 2026. Expired ID fails KYC. Block (or file a SAR citing the invalid ID) and request a current one.",
+    hint:"Read the expiry date." },
+
+  { minDay:3, photo:"👨", name:"Stephen Clark", id:{type:"Driver License",exp:"2030-04-04",name:"Steven Clark",dob:"1987-04-04"},
+    acct:{name:"Stephen Clark",dob:"1987-04-04",occ:"Architect",income:"$115,000/yr",risk:"LOW"},
+    speech:"Quick withdrawal, please.",
+    txn:{type:"Cash Withdrawal",amount:1200,cash:true,detail:"Personal"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"Name mismatch: ID 'Steven Clark' vs account 'Stephen Clark'. Must match exactly. Block (or file a SAR for the identity discrepancy).",
+    hint:"Steven vs Stephen — compare carefully." },
+
+  { minDay:3, photo:"🧕", name:"Aisha Rahman", id:{type:"Passport",exp:"2031-02-02",name:"Aisha Rahman",dob:"1993-02-02"},
+    acct:{name:"Aisha Rahman",dob:"1993-08-02",occ:"Doctor",income:"$200,000/yr",risk:"LOW"},
+    speech:"Depositing a locum payment.",
+    txn:{type:"Check Deposit",amount:7400,cash:false,detail:"Locum work check"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"DOB mismatch: ID 1993-02-02 vs account 1993-08-02. Identity unverified — block (or file a SAR for the identity discrepancy) and request correct documents.",
+    hint:"Compare the dates of birth digit by digit." },
+
+  { minDay:3, photo:"🧔", name:"Pyotr Ivanov", id:{type:"Driver License",exp:"2030-09-09",name:"Pyotr Ivanov",dob:"1982-09-09"},
+    acct:{name:"Pyotr Ivanov",dob:"1982-09-09",occ:"Driver",income:"$54,000/yr",risk:"MED"},
+    idPhotoName:"Stolen-ID-Decoy-2",
+    speech:"That's me, officer. Six thousand out.",
+    txn:{type:"Cash Withdrawal",amount:6000,cash:true,detail:"Personal"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"The photo on the ID is not the person at the window — forged or stolen document. Name and dates match, the face does not. Block (or file a SAR for the identity discrepancy).",
+    hint:"Look at the window face vs the ID photo." },
+
+  { minDay:3, photo:"👩", name:"Laura Simmons", id:{type:"Driver License",exp:"2031-12-12",name:"Laura Simmons",dob:"1994-12-12"},
+    acct:{name:"Laura Simmons",dob:"1994-12-12",occ:"Accountant",income:"$85,000/yr",risk:"LOW"},
+    speech:"Depositing my bonus.",
+    txn:{type:"Check Deposit",amount:3900,cash:false,detail:"Bonus check"},
+    correct:"APPROVE", reason:"ID matches the account, valid, photo matches, fits profile. Clean KYC. Approve." },
+
+  { minDay:3, photo:"👨", name:"Huang Lei", id:{type:"Passport",exp:"2022-05-05",name:"Huang Lei",dob:"1980-05-05"},
+    acct:{name:"Huang Lei",dob:"1980-05-05",occ:"Engineer",income:"$105,000/yr",risk:"LOW"},
+    speech:"Internal transfer to savings, please.",
+    txn:{type:"Transfer",amount:3000,cash:false,detail:"Internal to savings"},
+    flags:[15], also:["SAR"], correct:"BLOCK", reason:"Passport expired in 2022. Even a harmless internal transfer needs a valid ID. Block (or file a SAR citing the expired ID) and request a current one.",
+    hint:"The transaction is fine — is the ID still valid?" },
+
+  { minDay:3, photo:"👨", name:"Marvin Hayes", id:{type:"Driver License",exp:"2029-03-30",name:"Marvin Hayes",dob:"1976-03-30"},
+    acct:{name:"Marvin Hayes",dob:"1976-03-30",occ:"Teacher",income:"$62,000/yr",risk:"LOW"},
+    speech:"Just depositing a check.",
+    txn:{type:"Check Deposit",amount:2100,cash:false,detail:"Tutoring income"},
+    correct:"APPROVE", reason:"Valid, matching ID and a small routine deposit. Approve." },
+
+  { minDay:3, photo:"👩", name:"Catherine Reed", id:{type:"Driver License",exp:"2030-01-15",name:"Katherine Reed",dob:"1991-01-15"},
+    acct:{name:"Catherine Reed",dob:"1991-01-15",occ:"Marketer",income:"$78,000/yr",risk:"LOW"},
+    speech:"Withdrawal for a vacation, thanks.",
+    txn:{type:"Cash Withdrawal",amount:1800,cash:true,detail:"Personal"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"Name mismatch: ID 'Katherine' vs account 'Catherine'. Spelling must match exactly. Block (or file a SAR for the identity discrepancy).",
+    hint:"Catherine vs Katherine." },
+
+  /* ----- more DAY 4 (structuring) ----- */
+  { minDay:4, photo:"🧑", name:"Bobby Tran", id:{type:"Driver License",exp:"2030-04-04",name:"Bobby Tran",dob:"1997-04-04"},
+    acct:{name:"Bobby Tran",dob:"1997-04-04",occ:"Delivery Driver",income:"$36,000/yr",risk:"LOW"},
+    speech:"Another deposit, same as the others.",
+    txn:{type:"Cash Deposit",amount:9400,cash:true,detail:"Cash"},
+    log:["Jun 02 — Cash deposit $9,600","Jun 03 — Cash deposit $9,500","Jun 04 — Cash deposit $9,700","Today  — Cash deposit $9,400"],
+    flags:[0,2], correct:"SAR", reason:"Repeated cash deposits just under $10,000 by a low-income driver — textbook structuring. File a SAR." },
+
+  { minDay:4, photo:"👩", name:"Gina Holt", id:{type:"Driver License",exp:"2031-06-06",name:"Gina Holt",dob:"1983-06-06"},
+    acct:{name:"Gina Holt",dob:"1983-06-06",occ:"Salon Owner",income:"$115,000/yr",risk:"MED"},
+    speech:"This week's salon takings.",
+    txn:{type:"Cash Deposit",amount:8700,cash:true,detail:"Salon cash sales"},
+    log:["May 31 — Cash deposit $6,900","Jun 02 — Cash deposit $5,400","Jun 05 — Cash deposit $8,700"],
+    correct:"APPROVE", reason:"Cash-intensive salon with VARYING amounts tied to business, well within income. No deliberate just-under pattern. Approve — don't over-report legitimate business.",
+    hint:"Varying amounts that fit the business vs a deliberate under-$10k pattern." },
+
+  { minDay:4, photo:"👨", name:"Wayne Cobb", id:{type:"Driver License",exp:"2029-02-02",name:"Wayne Cobb",dob:"1979-02-02"},
+    acct:{name:"Wayne Cobb",dob:"1979-02-02",occ:"Salesman",income:"$58,000/yr",risk:"MED"},
+    speech:"Same as last few days — cash out.",
+    txn:{type:"Cash Withdrawal",amount:9600,cash:true,detail:"Cash"},
+    log:["Jun 01 — Cash withdrawal $9,800","Jun 02 — Cash withdrawal $9,500","Jun 03 — Cash withdrawal $9,700","Today  — Cash withdrawal $9,600"],
+    flags:[0], correct:"SAR", reason:"Serial just-under-$10k withdrawals to dodge the CTR — structuring on the way out. File a SAR." },
+
+  { minDay:4, photo:"👩", name:"Priscilla Vance", id:{type:"State ID",exp:"2028-10-10",name:"Priscilla Vance",dob:"1999-10-10"},
+    acct:{name:"Priscilla Vance",dob:"1999-10-10",occ:"Unemployed",income:"$0 (no income)",risk:"LOW"},
+    speech:"My boyfriend gives me cash to put in for him.",
+    txn:{type:"Cash Deposit",amount:9100,cash:true,detail:"Third-party cash"},
+    log:["Jun 01 — Cash deposit $9,300","Jun 03 — Cash deposit $9,000","Today  — Cash deposit $9,100"],
+    ring:"Meridian", flags:[0,8,2], correct:"SAR", reason:"No-income person making repeated just-under-$10k deposits of someone else's cash — money-mule + structuring. File a SAR." },
+
+  { minDay:4, photo:"🧔", name:"Roberto Salas", id:{type:"Driver License",exp:"2030-08-08",name:"Roberto Salas",dob:"1985-08-08"},
+    acct:{name:"Roberto Salas",dob:"1985-08-08",occ:"Food Truck Owner",income:"$98,000/yr",risk:"MED"},
+    speech:"Festival weekend — big cash haul, eleven five.",
+    txn:{type:"Cash Deposit",amount:11500,cash:true,detail:"Festival cash sales"},
+    log:["Jun 05 — Cash deposit $11,500 (single)"],
+    correct:"CTR", reason:"One honest deposit over $10,000 — that's a CTR, not structuring. He's openly depositing it. File the CTR.",
+    hint:"Openly over $10k = CTR. Structuring hides UNDER it." },
+
+  { minDay:4, photo:"🧑", name:"Eddie Marsh", id:{type:"Driver License",exp:"2029-11-11",name:"Eddie Marsh",dob:"1995-11-11"},
+    acct:{name:"Eddie Marsh",dob:"1995-11-11",occ:"Rideshare Driver",income:"$40,000/yr",risk:"MED"},
+    speech:"I split my deposits between your branches. Easier for me.",
+    txn:{type:"Cash Deposit",amount:9200,cash:true,detail:"Cash, Elm St branch"},
+    log:["Today — $9,500 cash @ Downtown","Today — $9,300 cash @ Harbor","Today — $9,200 cash @ Elm St"],
+    ring:"Meridian", flags:[0], correct:"SAR", reason:"Same-day sub-$10k cash deposits across multiple branches to avoid aggregation — structuring. File a SAR." },
+
+  /* ----- more DAY 5 (suspicious / jurisdiction / PEP) ----- */
+  { minDay:5, photo:"🧔", name:"Gordon Pyle", id:{type:"Driver License",exp:"2030-03-03",name:"Gordon Pyle",dob:"1974-03-03"},
+    acct:{name:"Gordon Pyle",dob:"1974-03-03",occ:"Unemployed",income:"$0 (no income)",risk:"MED"},
+    speech:"Wiring sixty thousand to my consulting company abroad.",
+    txn:{type:"Wire Transfer",amount:60000,cash:false,detail:"To shell company, BVI (shell)"},
+    flags:[2,3,10], correct:"SAR", reason:"An unemployed customer wiring $60k to his own offshore shell is grossly inconsistent with profile — layering through an opaque structure. File a SAR." },
+
+  { minDay:5, photo:"👨", name:"Lev Marchenko", id:{type:"Passport",exp:"2030-05-05",name:"Lev Marchenko",dob:"1977-05-05"},
+    acct:{name:"Lev Marchenko",dob:"1977-05-05",occ:"Trader",income:"$180,000/yr",risk:"HIGH"},
+    speech:"Settlement to a partner in Crimea.",
+    txn:{type:"Wire Transfer",amount:12000,cash:false,detail:"To beneficiary in Crimea region"},
+    correct:"BLOCK", reason:"The Crimea region is under comprehensive sanctions. Block regardless of the customer being clean.",
+    hint:"Check the destination." },
+
+  { minDay:5, photo:"🧓", name:"Harold Kessler", id:{type:"Passport",exp:"2031-09-09",name:"Harold Kessler",dob:"1958-09-09"},
+    acct:{name:"Harold Kessler",dob:"1958-09-09",occ:"Former Minister (PEP)",income:"$140,000/yr",risk:"HIGH"},
+    speech:"Just depositing some funds. No need for questions.",
+    txn:{type:"Cash Deposit",amount:95000,cash:true,detail:"Source not explained"},
+    flags:[14,2,4], correct:"SAR", reason:"A Politically Exposed Person depositing $95k cash with no explained source is a major red flag (corruption risk). File a SAR (and a CTR applies too).",
+    hint:"PEPs carry elevated risk — and where did the cash come from?" },
+
+  { minDay:5, photo:"👩‍⚕️", name:"Susan Cole", id:{type:"Driver License",exp:"2029-04-04",name:"Susan Cole",dob:"1980-04-04"},
+    acct:{name:"Susan Cole",dob:"1980-04-04",occ:"Dentist",income:"$380,000/yr",risk:"MED"},
+    speech:"Paying for new dental equipment.",
+    txn:{type:"Wire Transfer",amount:45000,cash:false,detail:"To registered domestic supplier"},
+    correct:"APPROVE", reason:"Large but consistent with a high-earning dentist paying a legitimate domestic supplier. Approve — size alone isn't suspicion." },
+
+  { minDay:5, photo:"🧑", name:"Tyler Briggs", id:{type:"Driver License",exp:"2031-07-07",name:"Tyler Briggs",dob:"1996-07-07"},
+    acct:{name:"Tyler Briggs",dob:"1996-07-07",occ:"Freelancer",income:"$50,000/yr",risk:"LOW"},
+    speech:"Crypto cash-out — then most of it wires straight back out.",
+    txn:{type:"Wire Transfer",amount:28000,cash:false,detail:"In from exchange, immediate pass-through to Seychelles (shell)"},
+    flags:[3,2,13], correct:"SAR", reason:"Funds arrive and immediately leave to an offshore shell, far above income — classic pass-through layering. File a SAR." },
+
+  { minDay:5, photo:"🧔", name:"Victor Greer", id:{type:"Driver License",exp:"2030-06-06",name:"Victor Greer",dob:"1972-06-06"},
+    acct:{name:"Victor Greer",dob:"1972-06-06",occ:"Antiques Dealer",income:"$90,000/yr",risk:"HIGH"},
+    speech:"I'd... rather not say where it's from. Just deposit it.",
+    txn:{type:"Cash Deposit",amount:38000,cash:true,detail:"Customer refuses to explain source"},
+    flags:[4,5,7], correct:"SAR", reason:"A customer who refuses to explain the source of $38k cash is overtly secretive — unexplained funds + evasive answers. File a SAR.",
+    hint:"What does refusing to explain the source tell you?" },
+
+  { minDay:5, photo:"🧔", name:"Faisal Omar", id:{type:"Passport",exp:"2030-02-02",name:"Faisal Omar",dob:"1983-02-02"},
+    acct:{name:"Faisal Omar",dob:"1983-02-02",occ:"Trader",income:"$110,000/yr",risk:"HIGH"},
+    speech:"Payment to my supplier in Syria.",
+    txn:{type:"Wire Transfer",amount:6500,cash:false,detail:"To beneficiary in Syria"},
+    correct:"BLOCK", reason:"Syria is a comprehensively sanctioned jurisdiction. Block the transfer.",
+    hint:"Read the destination country." },
+
+  { minDay:5, photo:"👩", name:"Wendy Stone", id:{type:"Driver License",exp:"2029-10-10",name:"Wendy Stone",dob:"1988-10-10"},
+    acct:{name:"Wendy Stone",dob:"1988-10-10",occ:"Office Cleaner",income:"$33,000/yr",risk:"LOW"},
+    speech:"Sending thirty-five thousand to an overseas 'investment'.",
+    txn:{type:"Wire Transfer",amount:35000,cash:false,detail:"To unknown overseas account"},
+    flags:[2,3], correct:"SAR", reason:"A $33k/yr cleaner wiring $35k abroad to a vague 'investment' is wildly inconsistent with profile. File a SAR." },
+
+  /* ----- CTR same-day AGGREGATION (each under $10k, together over) ----- */
+  { minDay:4, photo:"👩", name:"Nora Bishop", id:{type:"Driver License",exp:"2031-05-05",name:"Nora Bishop",dob:"1982-05-05"},
+    acct:{name:"Nora Bishop",dob:"1982-05-05",occ:"Cafe Owner",income:"$120,000/yr",risk:"MED"},
+    speech:"Morning and afternoon takings from the cafe.",
+    txn:{type:"Cash Deposit",amount:6200,cash:true,detail:"Afternoon till"},
+    log:["Today 9:10am — Cash deposit $5,400 (morning till)","Today 2:30pm — Cash deposit $6,200 (afternoon till)"],
+    correct:"CTR", reason:"AGGREGATION: same-day cash by the same person is added together — $5,400 + $6,200 = $11,600 > $10,000, so a CTR is required even though each deposit alone is under the threshold. It's an open, legit cafe — file the CTR (not a SAR).",
+    hint:"Add up the same-day cash from the same customer." },
+
+  { minDay:4, photo:"🧔", name:"Otis Frye", id:{type:"Driver License",exp:"2030-08-08",name:"Otis Frye",dob:"1977-08-08"},
+    acct:{name:"Otis Frye",dob:"1977-08-08",occ:"Market Vendor",income:"$88,000/yr",risk:"MED"},
+    speech:"Cash from both my market booths today.",
+    txn:{type:"Cash Deposit",amount:7000,cash:true,detail:"Booth B takings"},
+    log:["Today — Cash deposit $4,500 (Booth A)","Today — Cash deposit $7,000 (Booth B)"],
+    correct:"CTR", reason:"Two same-day cash deposits by the same vendor aggregate to $11,500 > $10,000 → CTR required. Openly declared market income, no evasion — file the CTR.",
+    hint:"Same-day cash from one person is aggregated toward $10k." },
+
+  /* ----- Beneficial ownership / look-through cases (surface looks fine) ----- */
+  { minDay:5, photo:"👨‍💼", name:"Greg Mason", id:{type:"Driver License",exp:"2031-03-03",name:"Greg Mason",dob:"1980-03-03"},
+    acct:{name:"Greg Mason",dob:"1980-03-03",occ:"Director, Apex Holdings LLC",income:"$150,000/yr",risk:"HIGH"},
+    speech:"Just a routine supplier payment for the company.",
+    txn:{type:"Wire Transfer",amount:9000,cash:false,detail:"Business supplier payment"},
+    log:["CDD file — beneficial owner of Apex Holdings LLC: GRIGOR PETROV","Apex Holdings LLC: no employees, registered agent only"],
+    correct:"BLOCK", reason:"The representative looks clean, but the account's CDD file shows the company's TRUE beneficial owner is Grigor Petrov — a sanctioned SDN on the watchlist. You must look through the corporate structure — block it.",
+    hint:"Screen the beneficial owner on the account file against the watchlist, not just the person at the window." },
+
+  { minDay:5, photo:"👩‍💼", name:"Diane Webb", id:{type:"Driver License",exp:"2030-09-09",name:"Diane Webb",dob:"1985-09-09"},
+    acct:{name:"Diane Webb",dob:"1985-09-09",occ:"Manager, Sterling Trade Co",income:"$130,000/yr",risk:"HIGH"},
+    speech:"Depositing our export receipts. All above board.",
+    txn:{type:"Check Deposit",amount:8200,cash:false,detail:"Export receipts — counterparty: Zenith Petrochem"},
+    log:["Counterparty on receipts: ZENITH PETROCHEM","Export receipts cannot be matched to real shipments","Ownership chain deliberately opaque"],
+    flags:[10,3,13], correct:"SAR", reason:"On the surface, a clean export deposit. The file shows the funds trace to Zenith Petrochem — a sanctioned entity on the watchlist — through an opaque ownership chain. File a SAR (layering through a shell structure).",
+    hint:"Screen the counterparty entity on the file against the watchlist." },
+
+  /* ===== CLEAN customers with names similar to listed parties =====
+     (you must screen the FULL name against the list — match the actual listed person) */
+  { minDay:2, photo:"👩", name:"Anya Sokol", id:{type:"Passport",exp:"2030-05-05",name:"Anya Sokol",dob:"1990-05-05"},
+    acct:{name:"Anya Sokol",dob:"1990-05-05",occ:"Nurse",income:"$64,000/yr",risk:"LOW"},
+    speech:"Sending money to my mother in Warsaw.",
+    txn:{type:"Wire Transfer",amount:1400,cash:false,detail:"To family in Poland"},
+    correct:"APPROVE", reason:"Screen the full name: 'Anya Sokol' is NOT on the list ('Olga Sokolova' is a different person). Small family remittance, no sanctioned destination. Approve — never deny on a similar-sounding surname alone.",
+    hint:"Compare the FULL name to the watchlist, not just the surname." },
+
+  { minDay:2, photo:"🧔", name:"Mikhail Belov", id:{type:"Passport",exp:"2031-02-02",name:"Mikhail Belov",dob:"1979-02-02"},
+    acct:{name:"Mikhail Belov",dob:"1979-02-02",occ:"Engineer",income:"$120,000/yr",risk:"LOW"},
+    speech:"Paying a parts supplier in Germany.",
+    txn:{type:"Wire Transfer",amount:2200,cash:false,detail:"To supplier in Germany"},
+    correct:"APPROVE", reason:"'Mikhail Belov' is not a listed party and Germany isn't sanctioned. A name that merely resembles a listed one is not a red flag. Approve." },
+
+  { minDay:2, photo:"👨", name:"Dimitri Romanov", id:{type:"Passport",exp:"2029-09-09",name:"Dimitri Romanov",dob:"1985-09-09"},
+    acct:{name:"Dimitri Romanov",dob:"1985-09-09",occ:"Teacher",income:"$58,000/yr",risk:"LOW"},
+    speech:"A little money for my nephew's school fees.",
+    txn:{type:"Wire Transfer",amount:900,cash:false,detail:"To family abroad"},
+    correct:"APPROVE", reason:"'Dimitri Romanov' is not 'Dmitri Volkov' — different person, not listed. Small family transfer. Approve." },
+
+  { minDay:2, photo:"👩", name:"Yelena Kuzmina", id:{type:"Passport",exp:"2030-07-07",name:"Yelena Kuzmina",dob:"1983-07-07"},
+    acct:{name:"Yelena Kuzmina",dob:"1983-07-07",occ:"Boutique Owner",income:"$110,000/yr",risk:"LOW"},
+    speech:"Paying a fabric supplier overseas.",
+    txn:{type:"Wire Transfer",amount:1800,cash:false,detail:"To supplier in Italy"},
+    correct:"APPROVE", reason:"Not listed, ordinary commercial payment, no sanctioned destination. Approve." },
+
+  { minDay:2, photo:"🧕", name:"Farah Haddad", id:{type:"Passport",exp:"2029-11-11",name:"Farah Haddad",dob:"1988-11-11"},
+    acct:{name:"Farah Haddad",dob:"1988-11-11",occ:"Doctor",income:"$190,000/yr",risk:"LOW"},
+    speech:"Supporting my parents back home.",
+    txn:{type:"Wire Transfer",amount:1200,cash:false,detail:"To family in Lebanon"},
+    correct:"APPROVE", reason:"Not on any list; Lebanon is not sanctioned. Routine family support — screen the full name and judge the transaction. Approve." },
+
+  { minDay:2, photo:"🧔", name:"Hassan Mahmoud", id:{type:"Passport",exp:"2031-03-03",name:"Hassan Mahmoud",dob:"1980-03-03"},
+    acct:{name:"Hassan Mahmoud",dob:"1980-03-03",occ:"Grocer",income:"$84,000/yr",risk:"LOW"},
+    speech:"Sending savings to my brother.",
+    txn:{type:"Wire Transfer",amount:1300,cash:false,detail:"To family in Jordan"},
+    correct:"APPROVE", reason:"The list has 'Tariq Hassan' — a different person. 'Hassan Mahmoud' is not listed. A shared name fragment is not a match. Approve.",
+    hint:"A matching surname or first name alone is NOT a watchlist hit." },
+
+  { minDay:2, photo:"👨", name:"Aleksandr Petrenko", id:{type:"Passport",exp:"2030-12-12",name:"Aleksandr Petrenko",dob:"1976-12-12"},
+    acct:{name:"Aleksandr Petrenko",dob:"1976-12-12",occ:"Architect",income:"$140,000/yr",risk:"LOW"},
+    speech:"Payment to a design consultant in Spain.",
+    txn:{type:"Wire Transfer",amount:3000,cash:false,detail:"To consultant in Spain"},
+    correct:"APPROVE", reason:"'Aleksandr Petrenko' is not 'Grigor Petrov'. Not listed, legitimate destination. Approve." },
+
+  { minDay:2, photo:"👩", name:"Svetlana Ivashko", id:{type:"Passport",exp:"2029-04-04",name:"Svetlana Ivashko",dob:"1991-04-04"},
+    acct:{name:"Svetlana Ivashko",dob:"1991-04-04",occ:"Translator",income:"$70,000/yr",risk:"LOW"},
+    speech:"Just wiring rent to my landlord while I'm abroad.",
+    txn:{type:"Wire Transfer",amount:1500,cash:false,detail:"Domestic landlord"},
+    correct:"APPROVE", reason:"Not listed, modest routine payment. Approve." },
+
+  { minDay:1, photo:"👵", name:"Galina Orlova", id:{type:"State ID",exp:"2028-06-06",name:"Galina Orlova",dob:"1950-06-06"},
+    acct:{name:"Galina Orlova",dob:"1950-06-06",occ:"Retired",income:"Pension",risk:"LOW"},
+    speech:"Two hundred dollars for groceries, please.",
+    txn:{type:"Cash Withdrawal",amount:200,cash:true,detail:"Personal"},
+    correct:"APPROVE", reason:"Tiny routine withdrawal. (And 'Galina Orlova' is not the listed 'Sergei Orlov'.) Approve." },
+
+  { minDay:3, photo:"🧔", name:"Ivan Sokolov", id:{type:"Driver License",exp:"2030-08-08",name:"Ivan Sokolov",dob:"1984-08-08"},
+    acct:{name:"Ivan Sokolov",dob:"1984-08-08",occ:"Carpenter",income:"$66,000/yr",risk:"LOW"},
+    speech:"Depositing this week's pay.",
+    txn:{type:"Check Deposit",amount:2600,cash:false,detail:"Payroll check"},
+    correct:"APPROVE", reason:"Valid, matching ID; not on the watchlist ('Olga Sokolova' is someone else). Routine deposit. Approve." },
+
+  { minDay:5, photo:"🧔", name:"Nikolai Marchenko", id:{type:"Driver License",exp:"2030-01-01",name:"Nikolai Marchenko",dob:"1973-01-01"},
+    acct:{name:"Nikolai Marchenko",dob:"1973-01-01",occ:"Surgeon",income:"$410,000/yr",risk:"MED"},
+    speech:"Paying a domestic medical-equipment supplier.",
+    txn:{type:"Wire Transfer",amount:40000,cash:false,detail:"To registered domestic supplier"},
+    correct:"APPROVE", reason:"Large but consistent with a high-earning surgeon paying a legitimate domestic vendor. Not listed. Approve — a large amount with a clear, legitimate purpose isn't suspicion." },
+
+  /* ----- a few more everyday customers ----- */
+  { minDay:1, photo:"👨", name:"Leon Carter", id:{type:"Driver License",exp:"2031-05-05",name:"Leon Carter",dob:"1992-05-05"},
+    acct:{name:"Leon Carter",dob:"1992-05-05",occ:"Teacher",income:"$55,000/yr",risk:"LOW"},
+    speech:"Depositing my paycheck.",
+    txn:{type:"Check Deposit",amount:2300,cash:false,detail:"Payroll"},
+    correct:"APPROVE", reason:"Routine payroll check, under threshold. Approve." },
+
+  { minDay:1, photo:"👩", name:"Naomi Park", id:{type:"Driver License",exp:"2030-10-10",name:"Naomi Park",dob:"1989-10-10"},
+    acct:{name:"Naomi Park",dob:"1989-10-10",occ:"Dentist",income:"$210,000/yr",risk:"LOW"},
+    speech:"Cash from selling my old car — eleven thousand.",
+    txn:{type:"Cash Deposit",amount:11000,cash:true,detail:"Private vehicle sale"},
+    correct:"CTR", reason:"Cash over $10,000 → CTR. A one-off car sale is a plausible source for a high earner. File the CTR." },
+
+  { minDay:4, photo:"🧑", name:"Trent Boswell", id:{type:"Driver License",exp:"2029-12-12",name:"Trent Boswell",dob:"1996-12-12"},
+    acct:{name:"Trent Boswell",dob:"1996-12-12",occ:"Bartender",income:"$38,000/yr",risk:"LOW"},
+    speech:"Tips from the bar this week.",
+    txn:{type:"Cash Deposit",amount:2400,cash:true,detail:"Cash tips"},
+    log:["May 29 — Cash deposit $1,900","Jun 02 — Cash deposit $2,600","Jun 05 — Cash deposit $2,400"],
+    correct:"APPROVE", reason:"Small, varying cash tips consistent with a bartender — no just-under-$10k pattern, no aggregation over threshold. Approve; don't over-report." },
+
+  /* ========================================================================
+     EXPANDED ROSTER — additional customers so the queue stays fresh longer
+     ======================================================================== */
+
+  /* ----- Day 1: APPROVE vs CTR (the $10k cash threshold) ----- */
+  { minDay:1, photo:"👩", name:"Bianca Ortiz", id:{type:"Driver License",exp:"2030-08-08",name:"Bianca Ortiz",dob:"1990-08-08"},
+    acct:{name:"Bianca Ortiz",dob:"1990-08-08",occ:"Graphic Designer",income:"$62,000/yr",risk:"LOW"},
+    speech:"Depositing a client invoice payment.",
+    txn:{type:"Check Deposit",amount:3400,cash:false,detail:"Client invoice"},
+    correct:"APPROVE", reason:"Routine business check, well under $10,000 and consistent with a freelance designer. Approve." },
+
+  { minDay:1, photo:"🧔", name:"Felix Warner", id:{type:"Passport",exp:"2031-04-04",name:"Felix Warner",dob:"1972-04-04"},
+    acct:{name:"Felix Warner",dob:"1972-04-04",occ:"Antique Dealer",income:"$130,000/yr",risk:"MED"},
+    speech:"Cash from a weekend antiques fair — $16,200.",
+    txn:{type:"Cash Deposit",amount:16200,cash:true,detail:"Antiques fair sales"},
+    correct:"CTR", reason:"Cash over $10,000 from a plausible source for a dealer, openly stated. No structuring. File the CTR and serve him." },
+
+  { minDay:1, photo:"👴", name:"Arthur Penn", id:{type:"State ID",exp:"2029-03-03",name:"Arthur Penn",dob:"1948-03-03"},
+    acct:{name:"Arthur Penn",dob:"1948-03-03",occ:"Retired",income:"Pension",risk:"LOW"},
+    speech:"Three hundred for the week.",
+    txn:{type:"Cash Withdrawal",amount:300,cash:true,detail:"Personal"},
+    correct:"APPROVE", reason:"Tiny routine withdrawal, valid account. Nothing to report. Approve." },
+
+  { minDay:1, photo:"👩", name:"Grace Holloway", id:{type:"Driver License",exp:"2030-02-02",name:"Grace Holloway",dob:"1985-02-02"},
+    acct:{name:"Grace Holloway",dob:"1985-02-02",occ:"Contractor",income:"$95,000/yr",risk:"LOW"},
+    speech:"Depositing exactly ten thousand in cash from a job.",
+    txn:{type:"Cash Deposit",amount:10000,cash:true,detail:"Construction job, cash"},
+    correct:"APPROVE", reason:"Exactly $10,000 is NOT over the threshold — a CTR is required only for cash OVER $10k. One plausible deposit, no pattern. Approve.",
+    hint:"Read the threshold carefully: it's cash OVER $10,000." },
+
+  { minDay:1, photo:"👨", name:"Russell Brandt", id:{type:"Driver License",exp:"2031-06-06",name:"Russell Brandt",dob:"1979-06-06"},
+    acct:{name:"Russell Brandt",dob:"1979-06-06",occ:"Jeweler",income:"$160,000/yr",risk:"MED"},
+    speech:"Taking out $12,000 cash to buy stock at auction.",
+    txn:{type:"Cash Withdrawal",amount:12000,cash:true,detail:"Inventory purchase"},
+    correct:"CTR", reason:"A CTR covers cash OVER $10,000 either direction — deposits AND withdrawals. Legitimate, openly stated purpose. File the CTR." },
+
+  { minDay:1, photo:"👩", name:"Camille Reynolds", id:{type:"Driver License",exp:"2030-09-09",name:"Camille Reynolds",dob:"1991-09-09"},
+    acct:{name:"Camille Reynolds",dob:"1991-09-09",occ:"Pharmacist",income:"$120,000/yr",risk:"LOW"},
+    speech:"Paying my contractor for the kitchen remodel.",
+    txn:{type:"Wire Transfer",amount:8500,cash:false,detail:"Domestic home contractor"},
+    correct:"APPROVE", reason:"Non-cash domestic payment consistent with her income and a clear purpose. Approve." },
+
+  { minDay:1, photo:"🧔", name:"Desmond Clarke", id:{type:"Driver License",exp:"2029-11-11",name:"Desmond Clarke",dob:"1983-11-11"},
+    acct:{name:"Desmond Clarke",dob:"1983-11-11",occ:"Car Wash Owner",income:"$140,000/yr",risk:"MED"},
+    speech:"Weekend takings — about fifteen grand in cash.",
+    txn:{type:"Cash Deposit",amount:15000,cash:true,detail:"Car-wash weekend receipts"},
+    correct:"CTR", reason:"Cash over $10,000 from a cash-intensive business is routine — a single open deposit, not a sub-threshold pattern. File the CTR and serve him." },
+
+  { minDay:1, photo:"👨", name:"Quincy Adams", id:{type:"State ID",exp:"2031-01-01",name:"Quincy Adams",dob:"1994-01-01"},
+    acct:{name:"Quincy Adams",dob:"1994-01-01",occ:"Nurse",income:"$72,000/yr",risk:"LOW"},
+    speech:"Just depositing my paycheck.",
+    txn:{type:"Check Deposit",amount:2900,cash:false,detail:"Payroll"},
+    correct:"APPROVE", reason:"Routine payroll, under threshold, consistent with profile. Approve." },
+
+  /* ----- Day 2: sanctions / watchlist screening ----- */
+  { minDay:2, photo:"🧔", name:"Pavel Morozov", id:{type:"Passport",exp:"2030-10-10",name:"Pavel Morozov",dob:"1971-10-10"},
+    acct:{name:"Pavel Morozov",dob:"1971-10-10",occ:"Businessman",income:"$280,000/yr",risk:"HIGH"},
+    speech:"A routine business transfer, nothing unusual.",
+    txn:{type:"Wire Transfer",amount:6000,cash:false,detail:"To trading partner"},
+    correct:"BLOCK", reason:"'Pavel Morozov' appears on the OFAC SDN list. Block regardless of amount or stated purpose — and don't tip him off." },
+
+  { minDay:2, photo:"👨", name:"Owen Fletcher", id:{type:"Driver License",exp:"2031-02-02",name:"Owen Fletcher",dob:"1986-02-02"},
+    acct:{name:"Owen Fletcher",dob:"1986-02-02",occ:"Importer",income:"$150,000/yr",risk:"MED"},
+    speech:"Paying an overseas supplier — Crown Harbor Trading.",
+    txn:{type:"Wire Transfer",amount:7800,cash:false,detail:"To Crown Harbor Trading LLC"},
+    correct:"BLOCK", reason:"The customer is clean, but the BENEFICIARY 'Crown Harbor Trading LLC' is on the watchlist. Screen counterparties too, not just the sender. Block.",
+    hint:"Check who the money is going TO, not just who is sending it." },
+
+  { minDay:2, photo:"🧔", name:"Pavel Moreno", id:{type:"Passport",exp:"2030-05-05",name:"Pavel Moreno",dob:"1988-05-05"},
+    acct:{name:"Pavel Moreno",dob:"1988-05-05",occ:"Chef",income:"$60,000/yr",risk:"LOW"},
+    speech:"Sending a little money to my sister.",
+    txn:{type:"Wire Transfer",amount:1100,cash:false,detail:"To family in Spain"},
+    correct:"APPROVE", reason:"'Pavel Moreno' is not the listed 'Pavel Morozov' — a different person. Screen the full name; a shared first name is not a match. Spain isn't sanctioned. Approve.",
+    hint:"Match the FULL name, not a single shared part." },
+
+  { minDay:2, photo:"👨", name:"Edmund Hale", id:{type:"Driver License",exp:"2030-07-07",name:"Edmund Hale",dob:"1980-07-07"},
+    acct:{name:"Edmund Hale",dob:"1980-07-07",occ:"Exporter",income:"$130,000/yr",risk:"HIGH"},
+    speech:"Wiring funds to a partner in North Korea.",
+    txn:{type:"Wire Transfer",amount:5400,cash:false,detail:"To partner in North Korea"},
+    correct:"BLOCK", reason:"The destination is North Korea — a sanctioned jurisdiction. Transactions to sanctioned countries are blocked regardless of the customer. Block.",
+    hint:"Read the destination country against the sanctioned list." },
+
+  { minDay:2, photo:"👩", name:"Elena Voronova", id:{type:"Passport",exp:"2031-03-03",name:"Elena Voronova",dob:"1977-03-03"},
+    acct:{name:"Elena Voronova",dob:"1977-03-03",occ:"Consultant",income:"$220,000/yr",risk:"HIGH"},
+    speech:"Just a transfer to my own account abroad.",
+    txn:{type:"Wire Transfer",amount:9100,cash:false,detail:"To overseas account"},
+    correct:"BLOCK", reason:"'Elena Voronova' is a listed SDN. Block — sanctioned parties may not transact, no exceptions." },
+
+  { minDay:2, photo:"👩", name:"Priya Nair", id:{type:"Passport",exp:"2030-12-12",name:"Priya Nair",dob:"1990-12-12"},
+    acct:{name:"Priya Nair",dob:"1990-12-12",occ:"Software Engineer",income:"$160,000/yr",risk:"LOW"},
+    speech:"Paying tuition for my brother overseas.",
+    txn:{type:"Wire Transfer",amount:4200,cash:false,detail:"University tuition, India"},
+    correct:"APPROVE", reason:"Not on any list; India isn't sanctioned; a clear, documented purpose consistent with her income. Approve — screen the name, judge the transaction." },
+
+  { minDay:2, photo:"👨", name:"Wesley Trent", id:{type:"Driver License",exp:"2030-06-06",name:"Wesley Trent",dob:"1982-06-06"},
+    acct:{name:"Wesley Trent",dob:"1982-06-06",occ:"Real Estate Agent",income:"$120,000/yr",risk:"HIGH"},
+    speech:"Moving some funds for a property deal.",
+    txn:{type:"Wire Transfer",amount:8000,cash:false,detail:"Property escrow"},
+    correct:"BLOCK", reason:"'Wesley Trent' is on the OFAC SDN list. Screening is name-based and applies to everyone — block the transaction." },
+
+  { minDay:2, photo:"👩", name:"Hannah Bryce", id:{type:"Driver License",exp:"2031-05-05",name:"Hannah Bryce",dob:"1987-05-05"},
+    acct:{name:"Hannah Bryce",dob:"1987-05-05",occ:"Logistics Manager",income:"$110,000/yr",risk:"MED"},
+    speech:"Settling a freight invoice with Silk Road Logistics.",
+    txn:{type:"Wire Transfer",amount:6700,cash:false,detail:"To Silk Road Logistics"},
+    correct:"BLOCK", reason:"The beneficiary 'Silk Road Logistics' is a listed entity. Block the payment — counterparties are screened just like individuals.",
+    hint:"Screen the beneficiary against the watchlist." },
+
+  /* ----- Day 3: KYC — ID must match the account, the person, and be valid ----- */
+  { minDay:3, photo:"🧓", name:"Walter Briggs", id:{type:"Driver License",exp:"2021-08-08",name:"Walter Briggs",dob:"1955-08-08"},
+    acct:{name:"Walter Briggs",dob:"1955-08-08",occ:"Retired",income:"Pension",risk:"LOW"},
+    speech:"Just withdrawing a little for the week.",
+    txn:{type:"Cash Withdrawal",amount:600,cash:true,detail:"Personal"},
+    flags:[15], also:["SAR"], correct:"BLOCK", reason:"The license expired in 2021 — years before today's 2026. Even a tiny withdrawal needs valid ID. Block and request a current document.",
+    hint:"Check the ID expiry against today's date." },
+
+  { minDay:3, photo:"👩", name:"Catherine Hayes", id:{type:"Driver License",exp:"2030-04-04",name:"Katherine Hayes",dob:"1990-04-04"},
+    acct:{name:"Catherine Hayes",dob:"1990-04-04",occ:"Architect",income:"$115,000/yr",risk:"LOW"},
+    speech:"Depositing a bonus check.",
+    txn:{type:"Check Deposit",amount:5200,cash:false,detail:"Bonus"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"ID 'Katherine Hayes' vs account 'Catherine Hayes' — the spelling differs. KYC requires an exact match. Block (or file a SAR for the identity discrepancy) and verify.",
+    hint:"Compare the names letter by letter." },
+
+  { minDay:3, photo:"👨", name:"Mateo Salinas", id:{type:"Driver License",exp:"2031-01-01",name:"Mateo Salinas",dob:"1986-03-15"},
+    acct:{name:"Mateo Salinas",dob:"1986-05-15",occ:"Electrician",income:"$78,000/yr",risk:"LOW"},
+    speech:"Quick deposit of my paycheck.",
+    txn:{type:"Check Deposit",amount:2700,cash:false,detail:"Payroll"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"Names match but the dates of birth don't: ID 1986-03-15 vs account 1986-05-15. A DOB discrepancy fails KYC. Block and verify identity.",
+    hint:"Compare the dates of birth digit by digit." },
+
+  { minDay:3, photo:"🧔", name:"Gordon Pike", id:{type:"Driver License",exp:"2030-08-08",name:"Gordon Pike",dob:"1981-08-08"},
+    acct:{name:"Gordon Pike",dob:"1981-08-08",occ:"Driver",income:"$50,000/yr",risk:"MED"},
+    idPhotoName:"Forged-Pike-Decoy",
+    speech:"That's me on the card. Taking out four thousand.",
+    txn:{type:"Cash Withdrawal",amount:4000,cash:true,detail:"Personal"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"The face on the ID is not the person at the window — name and dates line up, but the photo is someone else. A stolen or forged card. Block and escalate.",
+    hint:"Compare the window face to the ID photo." },
+
+  { minDay:3, photo:"👩", name:"Amina Sayed", id:{type:"Passport",exp:"2031-07-07",name:"Amina Sayed",dob:"1992-07-07"},
+    acct:{name:"Amina Sayed",dob:"1992-07-07",occ:"Researcher",income:"$90,000/yr",risk:"LOW"},
+    speech:"Depositing a grant disbursement.",
+    txn:{type:"Check Deposit",amount:6100,cash:false,detail:"Research grant"},
+    correct:"APPROVE", reason:"ID matches name and DOB, is unexpired, and the deposit fits her profile. Clean KYC. Approve." },
+
+  { minDay:3, photo:"👨", name:"Arturo Vega", id:{type:"Passport",exp:"2029-10-10",name:"Arturo Vega",dob:"1984-10-10"},
+    acct:{name:"Arturo Vega",dob:"1984-10-10",occ:"Chef",income:"$68,000/yr",risk:"LOW"},
+    speech:"Just depositing this month's savings.",
+    txn:{type:"Cash Deposit",amount:1500,cash:true,detail:"Savings"},
+    correct:"APPROVE", reason:"Valid, matching ID and a small cash deposit consistent with his profile. Approve." },
+
+  { minDay:3, photo:"👵", name:"Dorothy Lane", id:{type:"Passport",exp:"2018-02-02",name:"Dorothy Lane",dob:"1959-02-02"},
+    acct:{name:"Dorothy Lane",dob:"1959-02-02",occ:"Retired",income:"Pension",risk:"LOW"},
+    speech:"Wiring a gift to my grandson.",
+    txn:{type:"Wire Transfer",amount:1200,cash:false,detail:"Family gift, domestic"},
+    flags:[15], also:["SAR"], correct:"BLOCK", reason:"The passport expired in 2018. The transfer itself is harmless, but identification must be valid. Block and ask for current ID.",
+    hint:"Is the ID still valid?" },
+
+  { minDay:3, photo:"👨", name:"Caleb Ward", id:{type:"Driver License",exp:"2030-11-11",name:"Caleb Ward",dob:"1995-11-11"},
+    acct:{name:"Caleb Ward",dob:"1995-11-11",occ:"Mechanic",income:"$52,000/yr",risk:"LOW"},
+    speech:"Cash from side jobs, about nine hundred.",
+    txn:{type:"Cash Deposit",amount:900,cash:true,detail:"Side work"},
+    correct:"APPROVE", reason:"Valid matching ID, small cash deposit consistent with a mechanic's side work. Approve." },
+
+  /* ----- Day 4: structuring / smurfing ----- */
+  { minDay:4, photo:"🧑", name:"Gabriela Rios", id:{type:"Driver License",exp:"2030-03-03",name:"Gabriela Rios",dob:"1993-03-03"},
+    acct:{name:"Gabriela Rios",dob:"1993-03-03",occ:"Cashier",income:"$31,000/yr",risk:"LOW"},
+    speech:"Another deposit, same as the others.",
+    txn:{type:"Cash Deposit",amount:9700,cash:true,detail:"Cash"},
+    log:["Jun 02 — Cash deposit $9,600","Jun 03 — Cash deposit $9,800","Jun 04 — Cash deposit $9,500","Today  — Cash deposit $9,700"],
+    ring:"Meridian", flags:[0,2], correct:"SAR", reason:"Four consecutive cash deposits just under $10,000 — deliberate structuring to dodge the CTR, and far beyond a cashier's income. File a SAR." },
+
+  { minDay:4, photo:"👨", name:"Hank Dudley", id:{type:"Driver License",exp:"2029-05-05",name:"Hank Dudley",dob:"1975-05-05"},
+    acct:{name:"Hank Dudley",dob:"1975-05-05",occ:"Food Truck Owner",income:"$96,000/yr",risk:"MED"},
+    speech:"Daily takings from the truck.",
+    txn:{type:"Cash Deposit",amount:2100,cash:true,detail:"Food-truck sales"},
+    log:["Jun 01 — Cash deposit $1,800","Jun 03 — Cash deposit $3,200","Jun 05 — Cash deposit $2,100"],
+    correct:"APPROVE", reason:"Small, naturally varying cash receipts consistent with a food truck — no just-under-$10k pattern. Approve; don't over-report legitimate cash sales.",
+    hint:"Deliberate sub-$10k pattern, or normal business variation?" },
+
+  { minDay:4, photo:"👨‍💼", name:"Roland Beck", id:{type:"Driver License",exp:"2030-02-02",name:"Roland Beck",dob:"1982-02-02"},
+    acct:{name:"Roland Beck",dob:"1982-02-02",occ:"Consultant",income:"$70,000/yr",risk:"MED"},
+    speech:"Same as the last few days, cash out.",
+    txn:{type:"Cash Withdrawal",amount:9400,cash:true,detail:"Cash"},
+    log:["Jun 02 — Cash withdrawal $9,600","Jun 03 — Cash withdrawal $9,500","Jun 04 — Cash withdrawal $9,700","Today  — Cash withdrawal $9,400"],
+    flags:[0], correct:"SAR", reason:"Repeated cash withdrawals just under $10,000 are structuring on the way out — the same crime as deposit smurfing. File a SAR." },
+
+  { minDay:4, photo:"🧑", name:"Nadia Fox", id:{type:"Driver License",exp:"2031-04-04",name:"Nadia Fox",dob:"1996-04-04"},
+    acct:{name:"Nadia Fox",dob:"1996-04-04",occ:"Server",income:"$33,000/yr",risk:"MED"},
+    speech:"I just find it easier to use different branches.",
+    txn:{type:"Cash Deposit",amount:9200,cash:true,detail:"Cash, West branch"},
+    log:["Today — $9,300 cash @ North branch","Today — $9,100 cash @ East branch","Today — $9,200 cash @ West branch"],
+    ring:"Meridian", flags:[0], correct:"SAR", reason:"Same-day sub-$10k cash deposits split across branches to defeat aggregation — textbook structuring. File a SAR." },
+
+  { minDay:4, photo:"👩", name:"Beatrice Lund", id:{type:"Driver License",exp:"2030-06-06",name:"Beatrice Lund",dob:"1979-06-06"},
+    acct:{name:"Beatrice Lund",dob:"1979-06-06",occ:"Gallery Owner",income:"$180,000/yr",risk:"MED"},
+    speech:"A single cash sale from the gallery — eighteen thousand.",
+    txn:{type:"Cash Deposit",amount:18000,cash:true,detail:"Art sale, single payment"},
+    log:["Jun 05 — Cash deposit $18,000 (single)"],
+    correct:"CTR", reason:"One open cash deposit over $10,000 from a plausible source — that's a CTR, not a SAR. She isn't hiding under the threshold. File the CTR and serve her.",
+    hint:"Open and over $10k = CTR. Structuring stays UNDER." },
+
+  { minDay:4, photo:"👨", name:"Victor Crane", id:{type:"Driver License",exp:"2029-09-09",name:"Victor Crane",dob:"1988-09-09"},
+    acct:{name:"Victor Crane",dob:"1988-09-09",occ:"Tutor",income:"$36,000/yr",risk:"LOW"},
+    speech:"Just topping up my account again.",
+    txn:{type:"Cash Deposit",amount:9850,cash:true,detail:"Cash"},
+    log:["May 31 — Cash deposit $9,900","Jun 02 — Cash deposit $9,800","Jun 04 — Cash deposit $9,900","Today  — Cash deposit $9,850"],
+    flags:[0,2], correct:"SAR", reason:"A tutor making serial $9,800–$9,900 cash deposits is structuring beneath the CTR line and well above his stated income. File a SAR." },
+
+  /* ----- Day 5: suspicious activity — profile, jurisdiction, PEPs ----- */
+  { minDay:5, photo:"🧑", name:"Toby Glenn", id:{type:"Driver License",exp:"2030-10-10",name:"Toby Glenn",dob:"1997-10-10"},
+    acct:{name:"Toby Glenn",dob:"1997-10-10",occ:"Intern",income:"$24,000/yr",risk:"LOW"},
+    speech:"Sending $55,000 abroad for a friend's investment.",
+    txn:{type:"Wire Transfer",amount:55000,cash:false,detail:"To offshore account (Seychelles shell)"},
+    flags:[2,3,10,13], correct:"SAR", reason:"An intern earning $24k wiring $55k to an offshore shell 'for a friend' is grossly inconsistent with the profile — layering through a third party. File a SAR." },
+
+  { minDay:5, photo:"🧓", name:"Roy Halford", id:{type:"Passport",exp:"2031-08-08",name:"Roy Halford",dob:"1957-08-08"},
+    acct:{name:"Roy Halford",dob:"1957-08-08",occ:"Former Senator (PEP)",income:"$170,000/yr",risk:"HIGH"},
+    speech:"Depositing some cash. I'd rather not detail the source.",
+    txn:{type:"Cash Deposit",amount:120000,cash:true,detail:"Source undisclosed"},
+    flags:[14,4,2], correct:"SAR", reason:"A Politically Exposed Person depositing $120k cash with an undisclosed source is a corruption red flag. File a SAR (a CTR applies as well).",
+    hint:"PEP + unexplained large cash = elevated risk." },
+
+  { minDay:5, photo:"👨", name:"Dale Pruitt", id:{type:"Driver License",exp:"2030-01-01",name:"Dale Pruitt",dob:"1983-01-01"},
+    acct:{name:"Dale Pruitt",dob:"1983-01-01",occ:"Retail Clerk",income:"$35,000/yr",risk:"MED"},
+    speech:"Wiring forty thousand for 'business'.",
+    txn:{type:"Wire Transfer",amount:40000,cash:false,detail:"To shell company, Panama"},
+    flags:[13,2,1,10], correct:"SAR", reason:"A $40k wire to an offshore shell with a vague rationale, far above a retail clerk's income, has no clear economic purpose — layering. File a SAR." },
+
+  { minDay:5, photo:"👩", name:"Lillian Cho", id:{type:"Passport",exp:"2031-09-09",name:"Lillian Cho",dob:"1976-09-09"},
+    acct:{name:"Lillian Cho",dob:"1976-09-09",occ:"Cardiologist",income:"$520,000/yr",risk:"MED"},
+    speech:"Paying a domestic medical-equipment vendor.",
+    txn:{type:"Wire Transfer",amount:45000,cash:false,detail:"To registered domestic vendor"},
+    correct:"APPROVE", reason:"Large but consistent with a high-earning cardiologist paying a registered domestic vendor with a clear purpose. Not listed, no high-risk destination. Approve — a big number alone isn't suspicious.",
+    hint:"Does the activity fit this customer's known profile?" },
+
+  { minDay:5, photo:"🧔", name:"Curtis Vaughn", id:{type:"Driver License",exp:"2030-12-12",name:"Curtis Vaughn",dob:"1985-12-12"},
+    acct:{name:"Curtis Vaughn",dob:"1985-12-12",occ:"Unemployed",income:"$0 (no income)",risk:"MED"},
+    speech:"I won't say where it's from. Just take it.",
+    txn:{type:"Cash Deposit",amount:30000,cash:true,detail:"Refuses to explain source"},
+    flags:[4,5,2], correct:"SAR", reason:"An unemployed customer depositing $30k cash and refusing to explain the source is overtly secretive with unexplained funds. File a SAR (a CTR also applies).",
+    hint:"What does refusing to explain the source tell you?" },
+
+  { minDay:5, photo:"👩", name:"Yuki Sato", id:{type:"Passport",exp:"2030-04-04",name:"Yuki Sato",dob:"1990-04-04"},
+    acct:{name:"Yuki Sato",dob:"1990-04-04",occ:"Translator",income:"$72,000/yr",risk:"LOW"},
+    speech:"Sending support to my parents.",
+    txn:{type:"Wire Transfer",amount:1800,cash:false,detail:"Family support, Japan"},
+    correct:"APPROVE", reason:"A modest family remittance to a non-sanctioned country, consistent with her income and clearly explained. Approve — routine support isn't suspicious." },
+
+  /* ============================================================= *
+   *  EXPANSION PACK — additional cases across all teaching days   *
+   * ============================================================= */
+
+  /* ----- Day 1: APPROVE vs CTR (the $10k cash line) ----- */
+  { minDay:1, photo:"👩‍🍳", name:"Nora Whitfield", id:{type:"Driver License",exp:"2030-08-08",name:"Nora Whitfield",dob:"1982-08-08"},
+    acct:{name:"Nora Whitfield",dob:"1982-08-08",occ:"Café Owner",income:"$110,000/yr",risk:"LOW"},
+    speech:"Weekend takings from the café — twelve thousand three hundred in cash.",
+    txn:{type:"Cash Deposit",amount:12300,cash:true,detail:"Weekend cash receipts"},
+    correct:"CTR", reason:"Cash over $10,000 → a CTR is mandatory. A café's weekend cash receipts are an ordinary source, so it isn't suspicious — file the CTR and serve her." },
+
+  { minDay:1, photo:"🧑‍💼", name:"Devin Park", id:{type:"Driver License",exp:"2031-05-05",name:"Devin Park",dob:"1994-05-05"},
+    acct:{name:"Devin Park",dob:"1994-05-05",occ:"Graphic Designer",income:"$68,000/yr",risk:"LOW"},
+    speech:"Depositing a client check for a branding job.",
+    txn:{type:"Check Deposit",amount:6200,cash:false,detail:"Client invoice payment"},
+    correct:"APPROVE", reason:"A check (not cash) for invoiced work, consistent with a freelance designer. No threshold triggered. Approve." },
+
+  { minDay:1, photo:"👩", name:"Camille Rousseau", id:{type:"Passport",exp:"2030-12-12",name:"Camille Rousseau",dob:"1989-12-12"},
+    acct:{name:"Camille Rousseau",dob:"1989-12-12",occ:"Antiques Dealer",income:"$130,000/yr",risk:"MED"},
+    speech:"One cash sale today — nine thousand nine hundred and ninety-nine.",
+    txn:{type:"Cash Deposit",amount:9999,cash:true,detail:"Single antique sale"},
+    correct:"APPROVE", reason:"Trap! A single $9,999 cash deposit is UNDER the $10,000 line, so no CTR is required — and one isolated deposit from a plausible source is not structuring (that needs a repeated pattern). Approve.",
+    hint:"One deposit under $10k, plausible source, no pattern — not a CTR and not structuring." },
+
+  { minDay:1, photo:"🧓", name:"Otis Freeman", id:{type:"Driver License",exp:"2029-10-10",name:"Otis Freeman",dob:"1960-10-10"},
+    acct:{name:"Otis Freeman",dob:"1960-10-10",occ:"Landscaping Co. Owner",income:"$150,000/yr",risk:"MED"},
+    speech:"Pulling out fifteen grand cash to pay my crews for the season.",
+    txn:{type:"Cash Withdrawal",amount:15000,cash:true,detail:"Seasonal payroll, cash"},
+    correct:"CTR", reason:"The CTR rule covers cash WITHDRAWALS too, not just deposits — any cash transaction over $10,000. The purpose is legitimate, so file the CTR and serve him.",
+    hint:"A CTR is required for cash OVER $10k in either direction." },
+
+  /* ----- Day 2: OFAC sanctions screening ----- */
+  { minDay:2, photo:"🧔", name:"Anton Belov", id:{type:"Passport",exp:"2030-07-07",name:"Anton Belov",dob:"1973-07-07"},
+    acct:{name:"Anton Belov",dob:"1973-07-07",occ:"Shipping Broker",income:"$240,000/yr",risk:"HIGH"},
+    speech:"Just a routine settlement to a trading partner.",
+    txn:{type:"Wire Transfer",amount:9200,cash:false,detail:"To overseas account"},
+    correct:"BLOCK", reason:"'Anton Belov' matches the OFAC SDN watchlist (sanctions evasion). Block regardless of how routine it sounds — sanctioned individuals may not be transacted with." },
+
+  { minDay:2, photo:"👩‍💼", name:"Helena Ross", id:{type:"Driver License",exp:"2031-02-02",name:"Helena Ross",dob:"1986-02-02"},
+    acct:{name:"Helena Ross",dob:"1986-02-02",occ:"Logistics Manager",income:"$95,000/yr",risk:"MED"},
+    speech:"Paying an invoice to one of our trade suppliers.",
+    txn:{type:"Wire Transfer",amount:6800,cash:false,detail:"To Crown Harbor Trading LLC"},
+    correct:"BLOCK", reason:"The customer is clean, but the BENEFICIARY 'Crown Harbor Trading LLC' is a listed entity. Screen counterparties against the watchlist, not just the sender — block it.",
+    hint:"Check the beneficiary name against the watchlist." },
+
+  { minDay:2, photo:"👨", name:"Kwame Mensah", id:{type:"Passport",exp:"2030-11-11",name:"Kwame Mensah",dob:"1980-11-11"},
+    acct:{name:"Kwame Mensah",dob:"1980-11-11",occ:"University Lecturer",income:"$78,000/yr",risk:"LOW"},
+    speech:"Sending tuition to my niece studying in Ghana.",
+    txn:{type:"Wire Transfer",amount:2300,cash:false,detail:"To family in Ghana"},
+    correct:"APPROVE", reason:"Neither sender nor beneficiary is listed, the amount is modest, and Ghana is not sanctioned. A plausible family purpose — approve." },
+
+  /* ----- Day 3: KYC — ID must match the account & be valid ----- */
+  { minDay:3, photo:"👴", name:"Gerald Ashby", id:{type:"Driver License",exp:"2022-09-09",name:"Gerald Ashby",dob:"1951-09-09"},
+    acct:{name:"Gerald Ashby",dob:"1951-09-09",occ:"Retired",income:"Pension",risk:"LOW"},
+    speech:"Just moving a little into savings.",
+    txn:{type:"Internal Transfer",amount:1500,cash:false,detail:"Checking → savings"},
+    flags:[15], also:["SAR"], correct:"BLOCK", reason:"The driver license expired in 2022 — today is 2026. An expired ID fails KYC verification even for a harmless internal transfer. Block (or file a SAR citing the invalid ID) and request a current document.",
+    hint:"Check the expiry date against today's date." },
+
+  { minDay:3, photo:"🧑", name:"Gregory Mason", id:{type:"Driver License",exp:"2030-06-06",name:"Gregor Mason",dob:"1990-06-06"},
+    acct:{name:"Gregory Mason",dob:"1990-06-06",occ:"Electrician",income:"$74,000/yr",risk:"LOW"},
+    speech:"Depositing this week's pay.",
+    txn:{type:"Check Deposit",amount:3100,cash:false,detail:"Payroll check"},
+    flags:[9], also:["SAR"], correct:"BLOCK", reason:"Name mismatch: the ID reads 'Gregor Mason' but the account is 'Gregory Mason'. KYC requires the ID to match the account exactly. Block (or file a SAR for the identity discrepancy) and verify.",
+    hint:"Compare the first name on the ID with the account." },
+
+  { minDay:3, photo:"👩", name:"Lucia Romano", id:{type:"Passport",exp:"2031-04-04",name:"Lucia Romano",dob:"1987-04-04"},
+    acct:{name:"Lucia Romano",dob:"1987-04-04",occ:"Pharmacist",income:"$112,000/yr",risk:"LOW"},
+    speech:"Just depositing my paycheck, thanks.",
+    txn:{type:"Check Deposit",amount:4400,cash:false,detail:"Payroll check"},
+    correct:"APPROVE", reason:"ID matches the account on name and date of birth and is unexpired, and the transaction fits her profile. Clean KYC — approve." },
+
+  /* ----- Day 4: Structuring / smurfing ----- */
+  { minDay:4, photo:"👨", name:"Bryan Foss", id:{type:"Driver License",exp:"2030-03-03",name:"Bryan Foss",dob:"1992-03-03"},
+    acct:{name:"Bryan Foss",dob:"1992-03-03",occ:"Rideshare Driver",income:"$41,000/yr",risk:"MED"},
+    speech:"Same as the last few days — putting some cash in.",
+    txn:{type:"Cash Deposit",amount:9700,cash:true,detail:"Cash"},
+    log:["Jun 02 — Cash deposit $9,600","Jun 03 — Cash deposit $9,800","Jun 04 — Cash deposit $9,500","Today  — Cash deposit $9,700"],
+    ring:"Meridian", flags:[0,2], correct:"SAR", reason:"Four consecutive cash deposits all just under $10,000 is deliberate structuring to dodge the CTR threshold — and far above a rideshare driver's income. File a SAR.",
+    hint:"Look at the recent-activity log, not just today's amount." },
+
+  { minDay:4, photo:"🧔", name:"Manny Ortiz", id:{type:"Driver License",exp:"2031-07-07",name:"Manny Ortiz",dob:"1981-07-07"},
+    acct:{name:"Manny Ortiz",dob:"1981-07-07",occ:"Food-Truck Owner",income:"$130,000/yr",risk:"LOW"},
+    speech:"Daily takings — they bounce around with the festival crowds.",
+    txn:{type:"Cash Deposit",amount:6800,cash:true,detail:"Daily food-truck sales"},
+    log:["Jun 02 — Cash deposit $2,400","Jun 03 — Cash deposit $8,900","Jun 04 — Cash deposit $3,100","Today  — Cash deposit $6,800"],
+    correct:"APPROVE", reason:"Tempting, but these are VARYING cash amounts tied to daily sales of a cash-intensive business — no consistent 'just under $10k' pattern. That's normal retail, not structuring. Approve.",
+    hint:"Structuring is a tight pattern hugging the threshold — varying small sums aren't it." },
+
+  /* ----- Day 5: Suspicious activity — profile, jurisdiction ----- */
+  { minDay:5, photo:"🧑", name:"Sasha Kerr", id:{type:"Driver License",exp:"2030-05-05",name:"Sasha Kerr",dob:"1998-05-05"},
+    acct:{name:"Sasha Kerr",dob:"1998-05-05",occ:"Part-time Cashier",income:"$22,000/yr",risk:"LOW"},
+    speech:"Wiring sixty thousand overseas for an investment I read about.",
+    txn:{type:"Wire Transfer",amount:60000,cash:false,detail:"To offshore account (BVI shell)"},
+    flags:[2,3,13], correct:"SAR", reason:"A part-time cashier earning $22k wiring $60k to a BVI shell is grossly inconsistent with the profile — layering with no clear economic purpose. File a SAR." },
+
+  { minDay:5, photo:"👨", name:"Tomas Vela", id:{type:"Passport",exp:"2030-02-02",name:"Tomas Vela",dob:"1983-02-02"},
+    acct:{name:"Tomas Vela",dob:"1983-02-02",occ:"Exporter",income:"$160,000/yr",risk:"HIGH"},
+    speech:"A routine settlement to my supplier in Cuba.",
+    txn:{type:"Wire Transfer",amount:7400,cash:false,detail:"To beneficiary in Cuba"},
+    correct:"BLOCK", reason:"Cuba is a comprehensively sanctioned jurisdiction. The customer is clean and the amount is modest, but funds to a sanctioned country are blocked regardless. Block the transfer.",
+    hint:"Check the destination country against the sanctioned-jurisdiction list." },
+
+  { minDay:5, photo:"👩‍⚕️", name:"Eleanor Frost", id:{type:"Passport",exp:"2031-10-10",name:"Eleanor Frost",dob:"1972-10-10"},
+    acct:{name:"Eleanor Frost",dob:"1972-10-10",occ:"Hospital Administrator",income:"$210,000/yr",risk:"LOW"},
+    speech:"Paying a domestic IT contractor for our records system.",
+    txn:{type:"Wire Transfer",amount:38000,cash:false,detail:"To registered domestic vendor"},
+    correct:"APPROVE", reason:"Large but consistent with a senior hospital administrator paying a registered domestic vendor for a clear purpose. Not listed, no high-risk destination. Approve — a big number alone isn't suspicion." },
+];
+
+/* ---- Day plans: which cases & how many appear -------------------------- */
+const DAY_TITLES = {
+  1:"Orientation", 2:"Sanctions Screening", 3:"Know Your Customer",
+  4:"Structuring", 5:"Suspicious Activity", 6:"Final Audit"
+};
+const DAY_INTRO = {
+  1:"Welcome to the BSA/AML Unit. Your job: review each customer and choose the correct disposition. Read the MANUAL on the right. Today: tell routine transactions from those needing a Currency Transaction Report.",
+  2:"New directive: OFAC sanctions screening. Some customers and counterparties are on the WATCHLIST tab. They must be blocked.",
+  3:"Identity fraud is rising. Verify every ID against the account — name, date of birth, and expiry. The manual has the rule.",
+  4:"Intelligence reports a wave of STRUCTURING. Watch recent-activity logs for cash kept just under $10,000.",
+  5:"Final training: judge whether activity fits the customer. Inconsistent profiles and high-risk jurisdictions get a SAR — or a block.",
+  6:"AUDIT DAY. No new rules. Everything you've learned, mixed together, faster. Don't crack."
+};
+// Beyond the scripted week the shift never ends — titles and briefings are generated.
+const ENDLESS_TITLES = ["Overtime","Graveyard Shift","Crunch Week","Backlog Surge","Regulator's Glare","Peak Laundering Season","Lockdown Audit","The Long Night"];
+function dayTitle(day){
+  if(DAY_TITLES[day]) return DAY_TITLES[day];
+  return ENDLESS_TITLES[(day-7)%ENDLESS_TITLES.length] + " · Lvl " + (day-5);
+}
+function dayIntro(day){
+  if(DAY_INTRO[day]) return DAY_INTRO[day];
+  return `Endless duty — Level ${day-5}. Every rule is in play, the queue is longer (${casesForDay(day)} customers) and you get less time per case. The launderers know you're tired. Stay sharp — how far can you go?`;
+}
+
+/* ===== ENGINE ============================================================ */
+const state = { day:1, caseIdx:0, queue:[], pay:0, strikes:0, awaiting:false, used:new Set(), over:false,
+                timeLeft:0, clockOn:false, corruption:0, missed:0, history:[], audited:false, paused:false,
+                streak:0, news:"", bolo:null, boloCaught:false };
+const AUDIT_DAY = 4; // a surprise regulator audit lands at the start of this day
+let advancing = false; // guards against double-clicking "Next" (which caused freezes)
+let clockTimer = null;  // setInterval handle for the shift clock
+
+const el = (id)=>document.getElementById(id);
+const booth = el("booth");
+const actionsBar = el("actions");
+const overlay = el("overlay");
+const verdict = el("verdict");
+
+/* ---- Tiny Web-Audio sound engine (no files; synth blips) --------------- */
+let actx=null, muted=false;
+function audioInit(){
+  if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if(actx && actx.state==="suspended"){ actx.resume(); }
+}
+function tone(freq,dur,type,vol,when){
+  if(muted||!actx) return;
+  const t=actx.currentTime+(when||0), o=actx.createOscillator(), g=actx.createGain();
+  o.type=type||"square"; o.frequency.value=freq;
+  o.connect(g); g.connect(actx.destination);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.linearRampToValueAtTime(vol||0.18,t+0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.start(t); o.stop(t+dur+0.02);
+}
+function sfx(name){
+  switch(name){
+    case "stamp":  tone(150,0.11,"square",0.32);  tone(72,0.16,"triangle",0.28,0.02); break;
+    case "good":   tone(680,0.09,"square",0.2);    tone(1000,0.12,"square",0.2,0.09);  break;
+    case "bad":    tone(210,0.18,"sawtooth",0.26); tone(150,0.24,"sawtooth",0.24,0.07);break;
+    case "alarm":  tone(900,0.14,"square",0.22);   tone(660,0.14,"square",0.22,0.16); tone(900,0.14,"square",0.22,0.32); break;
+    case "cash":   tone(1250,0.05,"square",0.16);  tone(1650,0.06,"square",0.16,0.05); tone(2050,0.09,"square",0.14,0.1); break;
+    case "paper":  tone(320,0.05,"triangle",0.09); tone(250,0.06,"triangle",0.07,0.05);break;
+    case "tick":   tone(1050,0.03,"square",0.07);  break;
+    case "click":  tone(440,0.04,"square",0.1);    break;
+  }
+}
+function setMuted(m){ muted=m; const b=el("muteBtn"); if(b) b.textContent=muted?"🔇":"🔊"; }
+
+function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+/* ---- Procedural pixel-art portraits (one deterministic face per name) --- */
+function hashStr(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); } return h>>>0; }
+function rngFrom(seed){ return ()=>{ seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+const SKINS  = ["#f3d2ad","#ecc39a","#e0ad7e","#cf9b6c","#b97e4f","#9c6638","#7a4d2b","#5e3a1f"];
+const HAIRS  = ["#1b1916","#2c2218","#4a3119","#5a3a1a","#7a5230","#9c6b2e","#c9a24b","#d8c79a","#9aa0a4","#cfd3d6","#1d2a3a","#6e1f1f","#3a1f4a"];
+const SHIRTS = ["#566154","#4d5d6b","#6b5a3e","#7a4a4a","#48604f","#5b5b66","#3f5560","#6d4f6b","#7d6a3c","#8a4030","#3d4d5e","#5a6e4a"];
+const HATS   = ["#3a3f44","#5a3a1a","#2a3b2a","#6b1f1f","#1d2630","#4a4a52"];
+const BACKS  = ["#8d978c","#9aa3a6","#a39a8a","#8f9aa3","#9c968a"];
+const LIPS   = ["#a85a4a","#b5564a","#9c4a3e","#c06a5a"];
+// infer presentation from the first name so faces match traditionally gendered names
+const FEMALE_NAMES = new Set(("maria edith priya grace sara amara nina yan rosa mei karen karina lena tina helen nadia dana cindy elena anna lucia fatima mary linda susan emily emma olivia sophia sofia isabella mia ava ella nora ruth eva "+
+  "hannah aisha olga priscilla gina laura catherine katherine dorothy betty wendy diane nora "+
+  "anya yelena farah svetlana galina naomi megan jessica karen bianca amina gabriela beatrice lillian yuki").split(" "));
+const MALE_NAMES   = new Set(("daniel tom thomas frank hector viktor victor reza grigor liam yusuf james omar greg gregory john jon paul carl derek sam samuel phil philip bill william marcus david michael robert chief donovan hugh "+
+  "stephen steven walter marvin huang bobby wayne eddie roberto gordon lev harold tyler faisal diego pierre mohammed ahmed raj caleb wesley dmitri sergei carlos ibrahim pavel tariq pyotr anton boris otis greg "+
+  "mikhail dimitri aleksandr hassan ivan nikolai leon trent mahmoud brandon gary travis kevin felix desmond quincy owen edmund arturo roland toby roy dale curtis hank arthur").split(" "));
+function genderOf(name){
+  const f=(name||"").trim().split(/\s+/)[0].toLowerCase();
+  if(FEMALE_NAMES.has(f)) return "f";
+  if(MALE_NAMES.has(f)) return "m";
+  return /(a|e|i|ia|elle|ette)$/.test(f) ? "f" : "m"; // soft heuristic for the rest
+}
+// returns {palette, gender} so callers (the booth sprite) can match the body color
+function drawFace(canvas, name){
+  const W=16, H=18; canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext("2d"); ctx.imageSmoothingEnabled=false;
+  const r=rngFrom(hashStr(name));
+  const pick=a=>a[Math.floor(r()*a.length)];
+  const gender=genderOf(name);
+  const skin=pick(SKINS), hair=pick(HAIRS), shirt=pick(SHIRTS), back=pick(BACKS);
+  const px=(c,x,y,w,h)=>{ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); };
+
+  ctx.clearRect(0,0,W,H);
+  px(back,0,0,W,H);                                  // photo backdrop (varies)
+  px(shirt,2,15,12,3);                               // shoulders / clothing
+  if(gender==="m" && r()<0.45){ px("rgba(255,255,255,.5)",7,15,2,3); }// shirt collar / tie
+  px(skin,7,13,2,2);                                 // neck
+  px(skin,4,4,8,10);                                 // face
+  px(skin,5,3,6,1);                                  // forehead
+
+  // ---- hair / headwear: pick from a gender-appropriate set of styles ----
+  // styles: 0 bald,1 short,2 fringe,3 quiff,4 spike/bun,5 long sides,6 wide/afro,7 hat,8 scarf
+  const style = gender==="f" ? pick([2,3,5,5,6,8,2,5]) : pick([0,1,1,3,4,7,1,3]);
+  if(style===7){ // hat / cap
+    const hat=pick(HATS); px(hat,3,1,10,3); px(hat,2,3,12,1);
+    if(r()<0.5){ px(hat,2,4,3,1); }                  // cap brim
+  } else if(style===8){ // hood / headscarf
+    const sc=pick(SHIRTS); px(sc,3,1,10,4); px(sc,3,4,1,9); px(sc,12,4,1,9);
+  } else if(style!==0){
+    px(hair,4,2,8,2);                                // top
+    if(style!==1){ px(hair,3,3,1,5); px(hair,12,3,1,5); } // sides
+    if(style===2){ px(hair,4,4,8,1); }               // fringe
+    if(style===3){ px(hair,3,1,10,2); }              // tall/quiff
+    if(style===4){ px(hair,7,0,2,2); }               // spike/bun on top
+    if(style===5){ px(hair,3,2,2,10); px(hair,11,2,2,10); } // long flowing sides
+    if(style===6){ px(hair,2,2,12,2); px(hair,2,2,2,5); px(hair,12,2,2,5);} // wide/afro
+  }
+  // feminine faces get hair framing down past the ears for clear silhouette
+  if(gender==="f" && style!==7 && style!==8){ px(hair,3,4,1,8); px(hair,12,4,1,8); }
+
+  // ---- eyebrows ----
+  if(gender==="m" && r()<0.7){ px("rgba(0,0,0,.4)",5,7,2,1); px("rgba(0,0,0,.4)",9,7,2,1); }
+  // ---- eyes (+ lashes for feminine) ----
+  px("#241f1a",6,8,1,2); px("#241f1a",9,8,1,2);
+  if(gender==="f"){ px("rgba(0,0,0,.4)",5,8,1,1); px("rgba(0,0,0,.4)",10,8,1,1); }
+  // ---- glasses / sunglasses ----
+  const eyewear=r();
+  if(eyewear<0.16){ px("#15171a",5,8,3,1); px("#15171a",8,8,3,1); px("#15171a",8,8,1,1); }      // glasses
+  else if(eyewear<0.21){ px("#0c0c0c",5,7,6,2); }                                                // sunglasses
+  // ---- nose ----
+  px("rgba(0,0,0,.16)",8,10,1,1);
+  // ---- mouth (lips for feminine, neutral/expression otherwise) ----
+  if(gender==="f"){ px(pick(LIPS),6,12,4,1); }
+  else { const m=r(); if(m<0.6) px("#7a3b2e",6,12,4,1); else px("#7a3b2e",7,12,2,1); }
+  // ---- facial hair (masculine only) ----
+  if(gender==="m"){
+    const fh=r();
+    if(fh<0.22){ px(hair,5,12,6,2); px("#7a3b2e",6,12,4,1); }      // full beard
+    else if(fh<0.36){ px(hair,6,13,4,1); }                        // goatee
+    else if(fh<0.5){ px(hair,6,11,4,1); }                         // mustache
+  }
+  // ---- earring (more common on feminine) ----
+  if(r() < (gender==="f"?0.3:0.08)){ px("#d8c24b",4,11,1,1); px("#d8c24b",11,11,1,1); }
+
+  return {skin,hair,shirt,back,gender};
+}
+function paintFaces(root){
+  root.querySelectorAll("canvas.pxface").forEach(cv=>{
+    const pal = drawFace(cv, cv.dataset.name||"");
+    if(cv.classList.contains("sprite")){      // match the standing body to the shirt color
+      const body = cv.parentElement.querySelector(".body");
+      if(body){ body.style.background = pal.shirt; body.style.borderColor = "#1c211c"; }
+    }
+  });
+}
+
+function buildQueue(day){
+  const unused = c => !state.used.has(c.name);
+  const FRESH = 4, REVIEW = 2;
+  let q;
+  if(day>=6){
+    // Audit & endless mode: a growing mix with every rule in play. Once the roster
+    // is exhausted we recycle the pool so the shift never runs dry.
+    const n = casesForDay(day);
+    q = shuffle(CASES.filter(unused)).slice(0, n);
+    if(q.length < n){
+      const have = new Set(q.map(c=>c.name));
+      state.used = new Set(have);                 // start a fresh cycle, keep today's picks
+      q = q.concat(shuffle(CASES.filter(c=>!have.has(c.name))).slice(0, n-q.length));
+    }
+  } else {
+    // Days 1–5 are the structured teaching ramp: new rule cases + a little review.
+    const fresh  = shuffle(CASES.filter(c=>c.minDay===day && unused(c))).slice(0, FRESH);
+    const review = shuffle(CASES.filter(c=>c.minDay<day  && unused(c))).slice(0, REVIEW);
+    q = fresh.concat(review);
+  }
+  q.forEach(c=>state.used.add(c.name)); // mark as seen
+  return shuffle(q);
+}
+
+function renderManual(){
+  const box = el("tab-rules");
+  const active = RULES.filter(r=>r.day<=state.day);
+  box.innerHTML = "<h3>Compliance Manual</h3>" + active.map(r=>{
+    const isNew = r.day===state.day;
+    return `<div class="rule ${isNew?'new':''}">${isNew?'★ NEW · ':''}${r.html}</div>`;
+  }).join("") + `<div class="hint">CTR threshold: cash OVER ${money(CTR_THRESHOLD)}. SAR deadline: 30 days. Today's date: 2026-06-05.</div>`;
+}
+function renderWatchlist(){
+  const box = el("tab-watch");
+  box.innerHTML = "<h3>OFAC Watchlist</h3>" +
+    WATCHLIST.map(w=>`<div class="watch-item">${w.name}<br><small>${w.note}</small></div>`).join("") +
+    `<h3 style="margin-top:12px">Sanctioned Jurisdictions</h3>` +
+    SANCTIONED_COUNTRIES.map(c=>`<div class="watch-item">${c}</div>`).join("");
+}
+
+/* ---- Learn / glossary: real AML concepts with authoritative sources ---- */
+const GLOSSARY = [
+  ["BSA","The Bank Secrecy Act (1970) — the foundation of U.S. AML law. Requires banks to keep records and file reports (CTRs, SARs) that help detect money laundering.","fincen.gov/resources/statutes-and-regulations/bank-secrecy-act"],
+  ["AML","Anti-Money Laundering — the laws, rules and procedures that stop criminals from disguising illicit funds as legitimate income.","fincen.gov"],
+  ["The 3 stages","Placement (getting cash into the system) → Layering (moving it through complex transactions to obscure the trail) → Integration (returning it as 'clean' funds).","fincen.gov"],
+  ["CTR","Currency Transaction Report — mandatory for cash transactions over $10,000 (in OR out) by the same person in one business day. It is routine, not an accusation.","fincen.gov/sites/default/files/shared/FinCEN_CTR_Form112.pdf"],
+  ["Aggregation","Multiple cash transactions by the same person on the same day are added together toward the $10,000 CTR threshold.","ffiec.gov"],
+  ["SAR","Suspicious Activity Report — filed within 30 days when activity suggests money laundering or other crime. Confidential: you must NOT tip off the subject.","fincen.gov/sites/default/files/shared/FinCEN_SAR_Form111.pdf"],
+  ["Structuring / smurfing","Breaking cash into deposits kept just under $10,000 to dodge the CTR requirement. It's a federal crime in itself — file a SAR.","fincen.gov"],
+  ["KYC / CIP","Know Your Customer / Customer Identification Program — verify identity with valid, unexpired ID that matches the account before transacting.","ffiec.gov/bsa_aml_infobase"],
+  ["CDD & beneficial ownership","Customer Due Diligence — for legal entities you must identify the beneficial owner(s): the real people who own or control the company behind the account.","fincen.gov/resources/statutes-regulations/cdd-final-rule"],
+  ["EDD","Enhanced Due Diligence — extra scrutiny for higher-risk customers (PEPs, complex structures, high-risk geographies): source of funds, ownership, adverse media.","ffiec.gov/bsa_aml_infobase"],
+  ["OFAC / SDN","Office of Foreign Assets Control administers sanctions. Screen every party against the SDN (Specially Designated Nationals) list and block matches — never transact, never tip off.","ofac.treasury.gov"],
+  ["PEP","Politically Exposed Person — a current/former senior official whose position carries elevated corruption risk, warranting enhanced scrutiny.","fincen.gov"],
+  ["BSA Officer","The qualified individual a bank's board designates to run day-to-day BSA/AML compliance and report to management.","ffiec.gov/bsa_aml_infobase"],
+];
+function openLearn(){
+  document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active", b.dataset.tab==="learn"));
+  document.querySelectorAll(".tabcontent").forEach(t=>t.classList.remove("active"));
+  el("tab-learn").classList.add("active");
+}
+function renderLearn(){
+  const box = el("tab-learn");
+  box.innerHTML = "<h3>AML Glossary</h3>" +
+    GLOSSARY.map(([t,d,src])=>`<div class="glossary-item"><b>${t}</b><div>${d}</div>`+
+      (src?`<a href="https://${src}" target="_blank" rel="noopener">${src.split("/")[0]} ↗</a>`:"")+`</div>`).join("") +
+    `<div class="hint" style="margin-top:10px">Sources: FinCEN, FFIEC BSA/AML Manual, OFAC. Educational — fictional scenarios only.</div>`;
+}
+
+function updateStats(){
+  el("stat-day").textContent = state.day;
+  el("stat-case").textContent = (state.caseIdx+1)+"/"+state.queue.length;
+  el("stat-pay").textContent = money(state.pay);
+  el("stat-strikes").textContent = state.strikes+"/"+MAX_STRIKES;
+  renderClock();
+}
+function renderClock(){
+  const t = Math.max(0, state.timeLeft|0);
+  const el2 = el("stat-time"); if(!el2) return;
+  el2.textContent = Math.floor(t/60)+":"+String(t%60).padStart(2,"0");
+  el2.style.color = t<=10 ? "#e8604a" : "";
+}
+/* ---- The shift clock: only counts down while you're deliberating a case --- */
+function startShiftClock(){
+  state.timeLeft = state.queue.length * secPerCase(state.day) + 8;
+  state.clockOn = false;
+  clearInterval(clockTimer);
+  clockTimer = setInterval(()=>{
+    if(state.over){ clearInterval(clockTimer); return; }
+    if(!state.clockOn) return;
+    state.timeLeft--; renderClock();
+    if(state.timeLeft<=10 && state.timeLeft>0){ sfx("tick"); }
+    if(state.timeLeft<=0){ state.clockOn=false; clearInterval(clockTimer); timeUp(); }
+  }, 1000);
+  renderClock();
+}
+function clockGo(){ if(!state.over && state.timeLeft>0) state.clockOn = true; }
+function clockStop(){ state.clockOn = false; }
+function togglePause(){ state.paused ? resumeGame() : pauseGame(); }
+function pauseGame(){
+  if(state.paused) return;
+  state.paused = true;
+  state._wasClock = state.clockOn;   // remember whether the clock was running
+  state.clockOn = false;
+  el("pause").classList.add("show");
+}
+function resumeGame(){
+  if(!state.paused) return;
+  state.paused = false;
+  el("pause").classList.remove("show");
+  if(state._wasClock && !state.over) state.clockOn = true;  // restore exactly
+}
+function timeUp(){
+  if(state.over) return;
+  closeForm();
+  state.awaiting = false;
+  state.missed += Math.max(0, state.queue.length - state.caseIdx); // current + remaining unprocessed
+  endDay(true);
+}
+
+function idMatches(c){
+  return c.id.name===c.acct.name && c.id.dob===c.acct.dob;
+}
+function idExpired(c){
+  const exp = new Date(c.id.exp);
+  return exp < GAME_DATE;
+}
+
+/* ---- Render a realistic photo ID: a driver-license card or a passport --- */
+function idDocHtml(c, who, matchFlag, expFlag){
+  const id = c.id;
+  // derive plausible-looking document fields from the name (deterministic)
+  const seed = hashStr(id.name);
+  const dln = ("D"+String(seed%1e7).padStart(7,"0"));         // license number
+  const ppNo = (String.fromCharCode(65+seed%26)+String(seed%1e8).padStart(8,"0")); // passport no
+  const parts = id.name.trim().split(/\s+/);
+  const surname = parts.length>1 ? parts[parts.length-1] : parts[0];
+  const given = parts.slice(0, Math.max(1,parts.length-1)).join(" ");
+  const sex = genderOf(id.name)==="f" ? "F" : "M";
+  const hgt = (5 + (seed%2)) + "'" + (seed%12) + '"';
+  // a forged/stolen ID shows a DIFFERENT face than the person at the window
+  const photo = `<canvas class="pxface" data-name="${c.idPhotoName || who}"></canvas>`;
+
+  if(/Passport/i.test(id.type)){
+    const issue = (parseInt(id.exp.slice(0,4))-10) + id.exp.slice(4); // issued ~10 yrs before expiry
+    const mrz1 = ("P<USA"+(surname+"<<"+given.replace(/\s+/g,"<")).toUpperCase().replace(/[^A-Z<]/g,"")).padEnd(44,"<").slice(0,44);
+    const mrz2 = (ppNo+"<USA<"+id.dob.replace(/-/g,"").slice(2)+sex+id.exp.replace(/-/g,"").slice(2)).toUpperCase().replace(/[^A-Z0-9<]/g,"").padEnd(44,"<").slice(0,44);
+    return `
+    <div class="iddoc pp">
+      <div class="pp-page">
+        <div class="pp-head">
+          <div class="pp-seal">★</div>
+          <div class="pp-titles"><div class="pp-country">United States of America</div><div class="pp-kind">Passport · Passeport · Pasaporte</div></div>
+          <div class="pp-type">TYPE<br><b>P</b></div>
+        </div>
+        <div class="pp-body">
+          <div class="idphoto pp-photo">${photo}</div>
+          <div class="pp-fields">
+            <div class="ppf"><span class="k">Code / Passport No.</span><span class="v">USA &nbsp; ${ppNo}</span></div>
+            <div class="ppf"><span class="k">Surname</span><span class="v cmp" data-key="name" data-val="${id.name}">${surname.toUpperCase()}${matchFlag}</span></div>
+            <div class="ppf"><span class="k">Given Names</span><span class="v">${given.toUpperCase()}</span></div>
+            <div class="ppf"><span class="k">Nationality</span><span class="v">UNITED STATES OF AMERICA</span></div>
+            <div class="ppf two">
+              <span><span class="k">Date of Birth</span><span class="v cmp" data-key="dob" data-val="${id.dob}">${id.dob}</span></span>
+              <span><span class="k">Sex</span><span class="v">${sex}</span></span>
+              <span><span class="k">Issue</span><span class="v">${issue}</span></span>
+            </div>
+            <div class="ppf"><span class="k">Date of Expiry</span><span class="v">${id.exp}${expFlag}</span></div>
+            <div class="ppf"><span class="k">Authority</span><span class="v">U.S. DEPARTMENT OF STATE</span></div>
+          </div>
+          <div class="pp-ghost"><canvas class="pxface" data-name="${c.idPhotoName || who}"></canvas></div>
+        </div>
+        <div class="mrz">${mrz1}<br>${mrz2}</div>
+      </div>
+    </div>`;
+  }
+
+  // Driver License / State ID card
+  const kind = /State/i.test(id.type) ? "IDENTIFICATION CARD" : "DRIVER LICENSE";
+  return `
+    <div class="iddoc dl">
+      <div class="dl-top"><span class="dl-flag">★</span><span class="dl-state">STATE OF COLUMBIA</span><span class="dl-kind">${kind}</span></div>
+      <div class="dl-body">
+        <div class="idphoto dl-photo">${photo}</div>
+        <div class="dl-fields">
+          <div class="dlf"><span class="k">${/State/i.test(id.type)?"ID":"DLN"}</span><span class="v">${dln}</span></div>
+          <div class="dlf"><span class="k">LN</span><span class="v cmp" data-key="name" data-val="${id.name}">${surname}${matchFlag}</span></div>
+          <div class="dlf"><span class="k">FN</span><span class="v">${given}</span></div>
+          <div class="dlf"><span class="k">DOB</span><span class="v cmp" data-key="dob" data-val="${id.dob}">${id.dob}</span></div>
+          <div class="dlf two"><span><span class="k">SEX</span> <span class="v">${sex}</span></span><span><span class="k">HGT</span> <span class="v">${hgt}</span></span><span><span class="k">CLASS</span> <span class="v">C</span></span></div>
+          <div class="dlf"><span class="k">EXP</span><span class="v">${id.exp}${expFlag}</span></div>
+        </div>
+        <div class="dl-seal">◎</div>
+      </div>
+      <div class="dl-sig">${id.name}</div>
+    </div>`;
+}
+
+function renderCase(){
+  const c = state.queue[state.caseIdx];
+  if(!c){ endDay(); return; } // safety: never read past the end of the queue
+  state.awaiting = false; // not yet — wait for the customer to arrive
+  updateStats();
+
+  const matchFlag = ""; // don't telegraph a name mismatch — catch it with the compare tool
+  const expFlag = ""; // don't telegraph expiry — the player must read the date themselves
+
+  const who = c.name.replace(/^Account: /,'');
+  const upcoming = state.queue.slice(state.caseIdx+1, state.caseIdx+4);
+  const queueHtml = upcoming.length ? `<div class="queue">${upcoming.map(q=>{
+    const n=q.name.replace(/^Account: /,''); return `<div class="qfig"><canvas class="pxface" data-name="${n}"></canvas><div class="qbody"></div></div>`;
+  }).join("")}</div>` : "";
+  booth.innerHTML = `
+    <div class="scene">
+      <div class="banksign">First Federal Savings · Compliance Window 4</div>
+      <div class="window">
+        <div class="lobby"><div class="col left"></div><div class="col right"></div><div class="vault"></div><div class="floor"></div>${queueHtml}</div>
+        <div class="customer walking walkIn"><canvas class="pxface sprite" data-name="${who}"></canvas><div class="body"></div></div>
+        <div class="glare"></div>
+      </div>
+      <div class="counter"></div>
+    </div>
+    <div class="progress">▸ DAY ${state.day} — ${dayTitle(state.day)} · CASE ${state.caseIdx+1} OF ${state.queue.length}</div>
+    <div class="dossier hidden">
+    <div class="speech"><b>${who}:</b> "${c.speech}"</div>
+
+    ${idDocHtml(c, who, matchFlag, expFlag)}
+
+    <div class="ledger">
+      <div class="ledger-top"><span>First Federal Savings — Account Statement</span><span>Risk: ${c.acct.risk}</span></div>
+      <div class="ledger-body">
+        <div class="lrow"><span class="k">Account Holder</span><span class="v cmp" data-key="name" data-val="${c.acct.name}">${c.acct.name}</span></div>
+        <div class="lrow"><span class="k">Account No.</span><span class="v">****-${String(hashStr(c.acct.name)%1e6).padStart(6,"0")}</span></div>
+        <div class="lrow"><span class="k">Date of Birth</span><span class="v cmp" data-key="dob" data-val="${c.acct.dob}">${c.acct.dob}</span></div>
+        <div class="lrow"><span class="k">Occupation</span><span class="v">${c.acct.occ}</span></div>
+        <div class="lrow"><span class="k">Stated Income</span><span class="v">${c.acct.income}</span></div>
+        ${c.log?`<div class="ledger-sub">Recent Activity</div>
+          <div class="ledger-log">${c.log.map(l=>`<div>${l}</div>`).join("")}</div>`:""}
+      </div>
+    </div>
+
+    <div class="slip">
+      <div class="slip-head">★ Teller Receipt ★</div>
+      <div class="slip-line">First Federal Savings · Window 4</div>
+      <div class="slip-line">2026-06-05  09:${String(hashStr(c.txn.detail)%60).padStart(2,"0")}</div>
+      <div class="slip-sep"></div>
+      <div class="srow"><span>Type</span><span>${c.txn.type}</span></div>
+      <div class="srow"><span>Tender</span><span>${c.txn.cash?"CASH":"NON-CASH"}</span></div>
+      <div class="srow big"><span>Amount</span><span>${money(c.txn.amount)}</span></div>
+      <div class="slip-sep"></div>
+      <div class="srow"><span>Memo</span><span>${c.txn.detail}</span></div>
+      <div class="slip-barcode"></div>
+      <div class="slip-line">REF ${String(hashStr(c.acct.name+c.txn.amount)%1e8).padStart(8,"0")}</div>
+    </div>
+    </div>
+  `;
+  paintFaces(booth); // draw the pixel portraits (sprite + ID photo)
+  // customer is walking up — lock actions until they reach the window
+  renderActions(true);
+  const cust = booth.querySelector(".customer");
+  const dossier = booth.querySelector(".dossier");
+  setTimeout(()=>{
+    if(cust){
+      // pin them at the window, then drop the walk animation (which would otherwise
+      // snap them back to their off-screen start position)
+      cust.style.left = "calc(50% - 30px)";
+      cust.classList.remove("walking","walkIn"); // stop bobbing, stay put
+    }
+    if(dossier){ dossier.classList.remove("hidden"); }     // slide documents in
+    state.awaiting = true;
+    enableCompare();          // arm the click-to-compare discrepancy tool
+    renderActions(false);
+    clockGo();                // the shift clock now ticks while you deliberate
+  }, 1200);
+}
+
+function renderActions(disabled){
+  const c = state.queue[state.caseIdx] || {};
+  actionsBar.innerHTML = `
+    <div class="stamps-hint">🔖 STAMPS — click to apply</div>
+    <button class="stamp approve" data-act="APPROVE" ${disabled?'disabled':''}>✅ Approve<small>Process as routine</small></button>
+    <button class="stamp ctr"     data-act="CTR"     ${disabled?'disabled':''}>📄 File CTR<small>Cash &gt; $10k, legit</small></button>
+    <button class="stamp sar"     data-act="SAR"     ${disabled?'disabled':''}>🚩 File SAR<small>Suspicious activity</small></button>
+    <button class="stamp block"   data-act="BLOCK"   ${disabled?'disabled':''}>⛔ Block<small>Sanctions / KYC fail</small></button>
+  `;
+  if(!disabled){
+    actionsBar.querySelectorAll(".stamp").forEach(b=>{
+      b.addEventListener("click",()=>applyAct(b.dataset.act));
+    });
+  }
+}
+// one place that performs a disposition, used by clicks and keyboard
+function applyAct(act){
+  if(!state.awaiting || state.paused) return;
+  audioInit();
+  if(act==="APPROVE"){ decide(act); }
+  else { clockStop(); openForm(act); }
+}
+
+/* ---- Paperwork: SAR / CTR / Block each require a filled form ----------- */
+const SAR_FLAG_GROUPS = [
+  { cat:"Transaction-based", items:[
+    "Structuring / smurfing — cash kept just under $10,000",
+    "Atypical transactions with no clear economic purpose",
+    "Transaction value inconsistent with stated income",
+    "Rapid pass-through / layering of funds",
+    "Unexplained source of funds",
+  ]},
+  { cat:"Customer behavior", items:[
+    "Overly secretive — hides identity / beneficial owner",
+    "Suspicious personal history / criminal associations",
+    "Inconsistent or unverifiable explanations",
+    "Third-party / suspected money mule",
+  ]},
+  { cat:"Identity & structure", items:[
+    "Identity discrepancy (DOB / name mismatch)",
+    "Unusual or opaque business / ownership structure",
+    "Irrational choice of representatives",
+    "Misuse of client or corporate accounts",
+  ]},
+  { cat:"Geographic & political", items:[
+    "High-risk or sanctioned jurisdiction",
+    "Politically Exposed Person (PEP)",
+  ]},
+  { cat:"Documentation", items:[
+    "Expired or invalid identification",
+  ]},
+];
+const SAR_FLAGS = SAR_FLAG_GROUPS.flatMap(g=>g.items); // flat list for index lookup
+const BLOCK_MATCHES = [
+  "Customer matches OFAC SDN list",
+  "Counterparty / beneficiary is listed",
+  "Sanctioned jurisdiction involved",
+];
+const BLOCK_CONFIRMS = [
+  "Transaction rejected / funds blocked",
+  "Subject NOT tipped off",
+  "Escalated to OFAC within required time",
+];
+const sarModal = el("sarModal");
+const rand6 = ()=>String(Math.floor(Math.random()*900000+100000));
+
+function openForm(act){
+  if(!state.awaiting) return;
+  const c = state.queue[state.caseIdx];
+  const who = c.name.replace(/^Account: /,'');
+  const txnRO = `${c.txn.type} — ${money(c.txn.amount)} — ${c.txn.detail}`;
+  let head, body, deadline;
+
+  if(act==="SAR"){
+    head = `<div class="t">FinCEN Form 111 — SAR</div><div class="sub">Suspicious Activity Report · CONFIDENTIAL</div>`;
+    deadline = `Filing deadline: within 30 calendar days of detection. Do NOT tip off the subject.`;
+    let fi = 0; // running global index across all groups
+    const flagsHtml = SAR_FLAG_GROUPS.map(g=>{
+      const items = g.items.map(it=>`<label><input type="checkbox" data-g="flag" value="${fi++}"> ${it}</label>`).join("");
+      return `<div class="cat">${g.cat}</div>${items}`;
+    }).join("");
+    body = `
+      <div class="fld"><label class="lbl">Subject (account holder)</label><div class="ro">${who}</div></div>
+      <div class="fld"><label class="lbl">Transaction under review</label><div class="ro">${txnRO}</div></div>
+      <div class="fld"><label class="lbl">Suspicious activity — check all that apply</label>
+        <div class="flags">${flagsHtml}</div></div>
+      <div class="fld"><label class="lbl">Narrative — describe the suspicious activity</label>
+        <textarea id="fNarr" placeholder="e.g. Customer made repeated cash deposits just under the $10,000 CTR threshold..."></textarea></div>`;
+  } else if(act==="CTR"){
+    head = `<div class="t">FinCEN Form 112 — CTR</div><div class="sub">Currency Transaction Report · cash &gt; $10,000</div>`;
+    deadline = `Routine filing: file within 15 days. The customer is still served.`;
+    const isOut = /Withdrawal/i.test(c.txn.type);
+    body = `
+      <div class="fld"><label class="lbl">Person conducting transaction</label><div class="ro">${who}</div></div>
+      <div class="fld"><label class="lbl">Cash amount</label><div class="ro">${money(c.txn.amount)}</div></div>
+      <div class="fld"><label class="lbl">Direction of cash</label>
+        <div class="flags">
+          <label><input type="radio" name="dir" data-g="dir" value="Cash In (deposit)" ${isOut?"":"checked"}> Cash In (deposit)</label>
+          <label><input type="radio" name="dir" data-g="dir" value="Cash Out (withdrawal)" ${isOut?"checked":""}> Cash Out (withdrawal)</label>
+        </div></div>
+      <div class="fld"><label class="lbl">Source / purpose of funds</label>
+        <textarea id="fNarr" placeholder="e.g. Proceeds of a vehicle sale; consistent with customer's business..."></textarea></div>`;
+  } else { /* BLOCK */
+    head = `<div class="t">OFAC Sanctions Action</div><div class="sub">Blocked / Rejected Transaction Record</div>`;
+    deadline = `Block immediately. Report to OFAC. Do NOT process or tip off the subject.`;
+    body = `
+      <div class="fld"><label class="lbl">Subject</label><div class="ro">${who}</div></div>
+      <div class="fld"><label class="lbl">Transaction</label><div class="ro">${txnRO}</div></div>
+      <div class="fld"><label class="lbl">Basis for the match — check all that apply</label>
+        <div class="flags">${BLOCK_MATCHES.map((f,i)=>`<label><input type="checkbox" data-g="match" value="${i}"> ${f}</label>`).join("")}</div></div>
+      <div class="fld"><label class="lbl">Confirm required actions</label>
+        <div class="flags">${BLOCK_CONFIRMS.map((f,i)=>`<label><input type="checkbox" data-g="confirm" value="${i}"> ${f}</label>`).join("")}</div></div>`;
+  }
+
+  const fileLabel = act==="BLOCK" ? "▼ Block &amp; Report" : "▼ File Report";
+  sarModal.innerHTML = `
+    <div class="sarform">
+      <div class="form-head">${head}</div>
+      <div class="form-body">${body}<div class="err" id="fErr"></div></div>
+      <div class="stamprow">${deadline}</div>
+      <div class="form-actions">
+        <button class="btn cancel" id="fCancel">◀ Back</button>
+        <button class="btn file" id="fSubmit">${fileLabel}</button>
+      </div>
+    </div>`;
+  sarModal.classList.add("show");
+  el("fCancel").addEventListener("click", ()=>{ closeForm(); clockGo(); }); // back to deliberating
+  el("fSubmit").addEventListener("click", ()=>submitForm(act));
+}
+function closeForm(){ sarModal.classList.remove("show"); sarModal.innerHTML=""; }
+const grab = g => [...sarModal.querySelectorAll(`[data-g="${g}"]:checked`)].map(i=>+i.value);
+
+function submitForm(act){
+  const err = el("fErr");
+  if(act==="SAR"){
+    const flags = grab("flag");
+    const narr = (el("fNarr").value||"").trim();
+    if(flags.length===0){ err.textContent="✗ Select at least one suspicious-activity category."; return; }
+    if(narr.length<12){ err.textContent="✗ The narrative is too thin — describe the activity (min ~12 chars)."; return; }
+    closeForm(); decide("SAR", { icon:"📑", ref:"SAR-2026-"+rand6(), flagIdx:flags, detail:"flags: "+flags.map(i=>SAR_FLAGS[i]).join("; ") });
+  } else if(act==="CTR"){
+    const dir = [...sarModal.querySelectorAll('[data-g="dir"]:checked')].map(i=>i.value)[0];
+    const narr = (el("fNarr").value||"").trim();
+    if(!dir){ err.textContent="✗ Select the direction of the cash."; return; }
+    if(narr.length<8){ err.textContent="✗ State the source / purpose of the funds."; return; }
+    closeForm(); decide("CTR", { icon:"📄", ref:"CTR-2026-"+rand6(), detail:dir });
+  } else { /* BLOCK */
+    const matches = grab("match"), confirms = grab("confirm");
+    if(matches.length===0){ err.textContent="✗ Identify the basis for the sanctions match."; return; }
+    if(confirms.length<BLOCK_CONFIRMS.length){ err.textContent="✗ Confirm ALL required actions before blocking."; return; }
+    contactOfac({ icon:"⛔", ref:"OFAC-2026-"+rand6(), detail:matches.map(i=>BLOCK_MATCHES[i]).join("; ") });
+  }
+}
+
+/* ---- After the block form: contact the OFAC hotline to report the hit --- */
+function contactOfac(extra){
+  const c = state.queue[state.caseIdx];
+  const who = c.name.replace(/^Account: /,'');
+  sarModal.innerHTML = `
+    <div class="sarform ofac">
+      <div class="form-head"><div class="t">☎ OFAC Hotline</div><div class="sub">Office of Foreign Assets Control · Sanctions Compliance</div></div>
+      <div class="form-body">
+        <div class="ofac-screen">
+          <div>&gt; SECURE LINE ESTABLISHED…</div>
+          <div>&gt; CASE REF: <b>${extra.ref}</b></div>
+          <div>&gt; SUBJECT: <b>${who}</b></div>
+          <div>&gt; BASIS: ${extra.detail}</div>
+          <div>&gt; ACTION: funds blocked &amp; held. Awaiting OFAC instruction.</div>
+          <div class="blink">&gt; Transmit report to OFAC? _</div>
+        </div>
+        <div class="hint" style="color:#6b5a3e">Reporting is mandatory and time-sensitive. Do NOT release funds or notify the subject.</div>
+      </div>
+      <div class="form-actions">
+        <button class="btn cancel" id="ofacBack">◀ Back</button>
+        <button class="btn file" id="ofacSend">☎ Transmit to OFAC</button>
+      </div>
+    </div>`;
+  el("ofacBack").addEventListener("click", ()=>openForm("BLOCK")); // re-open the block form
+  el("ofacSend").addEventListener("click", ()=>{ sfx("alarm"); closeForm(); decide("BLOCK", extra); });
+}
+
+const ACT_LABEL = { APPROVE:"APPROVED", CTR:"CTR FILED", SAR:"SAR FILED", BLOCK:"BLOCKED" };
+
+function decide(act, sar){
+  if(!state.awaiting) return;
+  state.awaiting = false;
+  clockStop();
+  const c = state.queue[state.caseIdx];
+  // some cases accept more than one disposition (e.g. an identity problem can be a Block OR a SAR)
+  let correct = (act===c.correct) || !!(c.also && c.also.includes(act));
+  const sarAcceptable = (c.correct==="SAR") || !!(c.also && c.also.includes("SAR"));
+
+  // ---- SAR red flags are informational: filing the correct disposition always counts.
+  // The flag selection just gets a coaching note — it never fails the case or adds a strike.
+  let flagNote = "";
+  if(act==="SAR" && sar && sar.flagIdx && sarAcceptable && (c.flags||[]).length){
+    const want = c.flags;
+    const hit = sar.flagIdx.some(i=>want.includes(i));
+    const allRight = sar.flagIdx.every(i=>want.includes(i));
+    if(allRight){
+      flagNote = `<div class="hint">✓ Red flags correctly identified.</div>`;
+    } else if(hit){
+      flagNote = `<div class="hint">✓ Key red flag caught. The fullest set here: ${want.map(i=>SAR_FLAGS[i]).join("; ")}.</div>`;
+    } else {
+      flagNote = `<div class="hint">✓ SAR filed. Tip — the most fitting red flags here were: ${want.map(i=>SAR_FLAGS[i]).join("; ")}.</div>`;
+    }
+  }
+
+  // verdict slam
+  sfx("stamp");
+  verdict.textContent = correct ? "CORRECT" : "VIOLATION";
+  verdict.className = "verdict show "+(correct?"good":"bad");
+  setTimeout(()=>verdict.classList.remove("show"), 700);
+
+  let bonusLine = "";
+  if(correct){
+    state.pay += EARN;
+    state.streak = (state.streak||0) + 1;
+    sfx("good"); sfx("cash");
+    // most-wanted bounty: blocking the day's flagged target pays extra
+    if(act==="BLOCK" && state.bolo && c.id.name===state.bolo && !state.boloCaught){
+      state.boloCaught = true; state.pay += BOLO_BONUS; unlock("bounty");
+      bonusLine = `<div class="hint" style="color:#9bdc6e">🎯 Most-Wanted bounty — +${money(BOLO_BONUS)} for blocking ${c.id.name}.</div>`;
+    }
+    if(state.streak===10){ unlock("streak10"); floatToast(`<span class="ach-i">🔥</span><div><div class="ach-toast-t">Hot streak</div><div class="ach-toast-d">10 correct calls in a row!</div></div>`); }
+    if(bumpStat("correct")>=50) unlock("clean50");
+  } else {
+    state.strikes += 1;
+    state.pay -= FINE;
+    state.streak = 0;
+    sfx("bad");
+  }
+  updateStats();
+  renderActions(true);
+
+  const misfiled = (!correct && act==="SAR" && sarAcceptable); // SAR was acceptable but flags were wrong
+  // remember this decision for the surprise audit and the ending
+  state.history.push({ day:state.day, name:c.id.name, act, correctAct:c.correct, correct, misfiled, ring:c.ring||null });
+  const docLine = sar ? `<div class="hint">${sar.icon||"📄"} ${sar.ref} filed — ${sar.detail}.</div>` : "";
+  const fb = document.createElement("div");
+  fb.className = "feedback "+(correct?"good":"bad");
+  fb.innerHTML = `
+    <b>${correct ? "✓ Correct disposition"
+        : misfiled ? "✗ SAR misfiled — right call, wrong red flags"
+        : "✗ Citation issued — "+ACT_LABEL[act]+", should have been "+ACT_LABEL[c.correct]}</b>
+    ${c.reason}
+    ${docLine}
+    ${flagNote}
+    ${correct?`<div class="hint">+$${EARN} commission.${state.streak>=3?` · 🔥 ${state.streak} in a row`:""}</div>`:`<div class="hint">−$${FINE} fine · +1 strike.</div>`}
+    ${bonusLine}
+    <div style="margin-top:10px"><button class="next" id="nextBtn">${isLastCase()?'End Day ▸':'Next Customer ▸'}</button><span class="learn-link" onclick="openLearn()">📖 Learn the rule ▸</span></div>
+  `;
+  booth.prepend(fb);
+  booth.scrollTop = 0;
+  el("nextBtn").addEventListener("click", advance);
+
+  if(state.strikes>=MAX_STRIKES){
+    setTimeout(gameOver, 50);
+  }
+}
+
+function isLastCase(){ return state.caseIdx >= state.queue.length-1; }
+
+/* ---- Discrepancy tool: click two like fields to compare them ----------- */
+let cmpSel = null;
+function enableCompare(){
+  cmpSel = null;
+  booth.querySelectorAll(".cmp").forEach(elm=>{
+    elm.addEventListener("click",()=>{
+      if(!state.awaiting) return;
+      if(cmpSel===elm){ elm.classList.remove("cmp-sel"); cmpSel=null; return; }
+      if(!cmpSel){ cmpSel=elm; elm.classList.add("cmp-sel"); return; }
+      const sameKey = cmpSel.dataset.key===elm.dataset.key;
+      const match = sameKey && cmpSel.dataset.val.trim().toLowerCase()===elm.dataset.val.trim().toLowerCase();
+      const cls = !sameKey ? "cmp-bad" : (match?"cmp-ok":"cmp-bad");
+      [cmpSel,elm].forEach(x=>{ x.classList.remove("cmp-sel"); x.classList.add(cls);
+        setTimeout(()=>x.classList.remove("cmp-ok","cmp-bad"),1300); });
+      cmpToast(!sameKey ? "Compare like fields (name↔name, DOB↔DOB)" : (match?"✓ MATCH":"✗ MISMATCH"), match&&sameKey);
+      cmpSel=null;
+    });
+  });
+}
+function cmpToast(msg, good){
+  const g=el("game");
+  let t=g.querySelector(".cmp-toast"); if(t) t.remove();
+  t=document.createElement("div"); t.className="cmp-toast "+(good?"good":"bad"); t.textContent=msg;
+  g.appendChild(t); setTimeout(()=>t.remove(),1300);
+}
+
+function advance(){
+  if(state.over || advancing){ return; } // ignore repeat / double clicks — this caused the freeze
+  advancing = true;
+  const nb = el("nextBtn"); if(nb){ nb.disabled = true; }
+  if(isLastCase()){ advancing = false; endDay(); return; }
+  // let the current customer linger at the window, THEN walk off, then bring in the next
+  const cust = booth.querySelector(".customer");
+  if(cust){
+    const dossier = booth.querySelector(".dossier");
+    const fb = booth.querySelector(".feedback");
+    // hold at the window for a beat before leaving
+    setTimeout(()=>{
+      cust.classList.remove("walking");
+      cust.classList.add("walkOut");
+      if(dossier){ dossier.classList.add("hidden"); sfx("paper"); }
+      if(fb){ fb.style.opacity = ".3"; }
+      setTimeout(()=>{ state.caseIdx++; renderCase(); advancing = false; }, 1100);
+    }, 1400);
+  } else {
+    state.caseIdx++; renderCase(); advancing = false;
+  }
+}
+
+/* ---- Overlays: title, day intro, day summary, game over, win ---------- */
+function showOverlay(html){ overlay.innerHTML = html; overlay.style.display = "flex"; paintFaces(overlay); }
+function hideOverlay(){ overlay.style.display = "none"; }
+
+/* ---- Leaderboard: highest DAY reached wins, ties broken by pay --------- */
+const LB_KEY = "kyc_aml_leaderboard_v1";
+function loadBoard(){ try{ const b=JSON.parse(localStorage.getItem(LB_KEY)); return Array.isArray(b)?b:[]; }catch(e){ return []; } }
+function saveBoard(b){ try{ localStorage.setItem(LB_KEY, JSON.stringify(b)); }catch(e){} }
+function bestDay(){ const b=loadBoard(); return b.length?b[0].day:0; }
+function addScore(name, day, pay){
+  const clean=(name||"").replace(/[<>]/g,"").trim().toUpperCase().slice(0,12) || "ANON";
+  const entry={ name:clean, day, pay, ts:Date.now()+Math.random() };
+  const b=loadBoard(); b.push(entry);
+  b.sort((x,y)=> y.day-x.day || y.pay-x.pay || x.ts-y.ts);
+  const top=b.slice(0,10); saveBoard(top);
+  return { entry };
+}
+function boardRows(highlightTs, limit){
+  let b=loadBoard();
+  if(!b.length) return `<div class="lb-empty">No scores yet — be the first to survive.</div>`;
+  if(limit) b=b.slice(0,limit);
+  return b.map((e,i)=>`<div class="lb-row${e.ts===highlightTs?' me':''}">`+
+    `<span class="lb-rank">${i+1}</span><span class="lb-name">${e.name}</span>`+
+    `<span class="lb-day">Day ${e.day}</span><span class="lb-pay">${money(e.pay)}</span></div>`).join("");
+}
+
+/* ---- Daily flavor: a news headline + a "most-wanted" bulletin ---------- */
+const NEWS = [
+  "FinCEN warns banks of a nationwide surge in cash <b>structuring</b>.",
+  "Regulators levy a record fine on a bank that missed a <b>sanctions</b> hit.",
+  "Examiners say <b>trade-based laundering</b> through shell firms is rising.",
+  "Treasury adds dozens of names to the <b>OFAC</b> list this week.",
+  "Industry report: <b>identity fraud</b> at the teller window is up sharply.",
+  "Investigators: <b>mule networks</b> are recruiting students to move cash.",
+  "A <b>PEP-linked</b> corruption probe widens across three continents.",
+  "Crackdown on <b>offshore shells</b> freezes billions in assets.",
+  "Examiners to focus on <b>CTR completeness</b> in upcoming reviews.",
+  "Authorities dismantle a <b>smurfing ring</b> spanning forty branches.",
+  "Sanctioned oil traders caught routing funds through front companies.",
+  "Watchdog: 'know your customer' lapses cited in most recent failures.",
+];
+function newsFor(){ return NEWS[Math.floor(Math.random()*NEWS.length)]; }
+function watchNote(name){ const w=WATCHLIST.find(x=>x.name===name); return w?w.note:"sanctioned party"; }
+// names that are BOTH on the watchlist AND exist as real customers — so the bounty is catchable
+const WATCH_NAMES = new Set(WATCHLIST.map(w=>w.name));
+const BOLO_POOL = [...new Set(CASES.filter(c=>WATCH_NAMES.has(c.id.name)).map(c=>c.id.name))];
+const BOLO_BONUS = 400;
+
+/* ---- Achievements + lifetime stats (persisted) ------------------------- */
+const ACH_KEY = "kyc_aml_achievements_v1";
+const STAT_KEY = "kyc_aml_stats_v1";
+const ACHIEVEMENTS = [
+  { id:"firstday",     icon:"🗂️", title:"First Shift",   desc:"Complete Day 1." },
+  { id:"spotless",     icon:"✨",  title:"Spotless Day",  desc:"Finish a day with zero strikes." },
+  { id:"bounty",       icon:"🎯",  title:"Bounty Hunter", desc:"Block a most-wanted target." },
+  { id:"streak10",     icon:"🔥",  title:"On a Roll",     desc:"Make 10 correct calls in a row." },
+  { id:"day10",        icon:"🌙",  title:"Night Owl",     desc:"Reach Day 10." },
+  { id:"day15",        icon:"🏆",  title:"Iron Examiner", desc:"Reach Day 15." },
+  { id:"clean50",      icon:"📈",  title:"Veteran",       desc:"Make 50 correct calls (lifetime)." },
+];
+function loadAch(){ try{ const a=JSON.parse(localStorage.getItem(ACH_KEY)); return Array.isArray(a)?new Set(a):new Set(); }catch(e){ return new Set(); } }
+function saveAch(s){ try{ localStorage.setItem(ACH_KEY, JSON.stringify([...s])); }catch(e){} }
+function bumpStat(key){ try{ const s=JSON.parse(localStorage.getItem(STAT_KEY))||{}; s[key]=(s[key]||0)+1; localStorage.setItem(STAT_KEY, JSON.stringify(s)); return s[key]; }catch(e){ return 0; } }
+function unlock(id){
+  const s=loadAch(); if(s.has(id)) return; s.add(id); saveAch(s);
+  const a=ACHIEVEMENTS.find(x=>x.id===id);
+  if(a) floatToast(`<span class="ach-i">${a.icon}</span><div><div class="ach-toast-t">Achievement unlocked</div><div class="ach-toast-d">${a.title} — ${a.desc}</div></div>`);
+}
+function achGridHtml(){
+  const s=loadAch();
+  return `<div class="ach-grid">`+ACHIEVEMENTS.map(a=>`<div class="ach ${s.has(a.id)?'on':''}" title="${a.desc}"><span class="ach-i">${a.icon}</span><span class="ach-t">${a.title}</span></div>`).join("")+`</div>`;
+}
+function floatToast(html){
+  const g=el("game"); const t=document.createElement("div"); t.className="ach-toast"; t.innerHTML=html;
+  g.appendChild(t); setTimeout(()=>{ t.classList.add("out"); setTimeout(()=>t.remove(),400); }, 2600);
+}
+
+/* ---- End-of-run screen: enter your name, then see the leaderboard ------ */
+let runRecorded=false;
+function endRun(opts){
+  state.over=true; advancing=false; clockStop(); clearInterval(clockTimer);
+  runRecorded=false;
+  renderEndOverlay(opts, null);
+}
+function renderEndOverlay(opts, result){
+  const day=state.day, pay=state.pay;
+  const section = result
+    ? `<div class="lb-wrap"><h3>★ LEADERBOARD ★</h3>${boardRows(result.entry.ts)}</div>`
+    : `<div class="score-entry">
+         <p>You reached <b style="color:#9bdc6e">Day ${day}</b> · balance <b style="color:#cBa24a">${money(pay)}</b></p>
+         <div class="se-row"><input id="initials" maxlength="12" placeholder="ENTER NAME" autocomplete="off" spellcheck="false"/><button class="cta" id="saveScore">Save</button></div>
+       </div>`;
+  showOverlay(`
+    <div class="big">${opts.icon}</div>
+    <h1 style="color:${opts.color}">${opts.title}</h1>
+    <h2>${opts.subtitle}</h2>
+    ${opts.body||""}
+    ${section}
+    <div class="end-actions"><button class="cta${result?'':' alt'}" id="retryBtn">${opts.cta||"Play Again"}</button></div>
+  `);
+  el("retryBtn").addEventListener("click", startGame);
+  if(!result){
+    const inp=el("initials");
+    const save=()=>{ if(runRecorded) return; runRecorded=true; const r=addScore(inp?inp.value:"", day, pay); renderEndOverlay(opts, r); };
+    el("saveScore").addEventListener("click", save);
+    if(inp){ inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); save(); } }); setTimeout(()=>inp.focus(),60); }
+  }
+}
+
+/* ---- The BSA Officer: praises a clean day, scolds a strike, rages if fired */
+const BOSS = {
+  name:"BSA OFFICER DONOVAN",
+  proud:[
+    "Flawless sheet today. Keep this up and the examiners never darken our door.",
+    "Not one miss. That is the standard. The Bank sleeps easy tonight.",
+    "Clean as a whistle. You're the reason we still have a charter.",
+    "Textbook work. I'm putting a note in your file — the good kind.",
+    "Sharp eyes all day. This is what compliance is supposed to look like.",
+    "Spotless. The regulators would be bored watching you. I love it.",
+  ],
+  sad:[
+    "A citation today. I expected better — every miss is a fine waiting to happen.",
+    "Sloppy. Regulators don't grade on a curve. Tighten it up tomorrow.",
+    "That slip could've cost us the charter. Don't make me say it twice.",
+    "Disappointing. One launderer through that window and it's my head too.",
+    "We can't afford mistakes like that. Read the manual again tonight.",
+  ],
+  fired:"FOUR strikes?! Clean out your desk. You've put this entire bank — and my career — at risk. Get out.",
+};
+function bossBlock(mood){
+  const msg = mood==="fired" ? BOSS.fired
+            : (mood==="proud" ? BOSS.proud : BOSS.sad)[state.day % (mood==="proud"?BOSS.proud.length:BOSS.sad.length)];
+  return `<div class="boss ${mood}">
+    <div class="boss-portrait"><canvas class="pxface" data-name="Chief Donovan"></canvas></div>
+    <div class="boss-speech"><div class="boss-name">${BOSS.name}</div>"${msg}"</div>
+  </div>`;
+}
+
+function startGame(){
+  state.day=1; state.caseIdx=0; state.pay=0; state.strikes=0;
+  state.used = new Set(); state.over = false; advancing = false;
+  state.corruption=0; state.missed=0; state.timeLeft=0; state.clockOn=false;
+  state.history=[]; state.audited=false;
+  state.streak=0; state.news=""; state.bolo=null; state.boloCaught=false;
+  state.paused=false; el("pause").classList.remove("show");
+  clearInterval(clockTimer);
+  renderManual(); renderWatchlist();
+  beginDay();
+}
+
+function beginDay(){
+  state.caseIdx=0; advancing=false; state.missed=0;
+  state.dayStartStrikes = state.strikes; // to tell if a strike happened today
+  state.queue = buildQueue(state.day);
+  // daily flavor: a news headline, and (once sanctions are in play) a most-wanted bounty
+  state.news = newsFor();
+  state.boloCaught = false;
+  // only flag a most-wanted whose case can actually appear by today, so the bounty is winnable
+  const eligible = state.day>=2 ? BOLO_POOL.filter(n=>CASES.some(c=>c.id.name===n && c.minDay<=state.day)) : [];
+  state.bolo = eligible.length ? eligible[Math.floor(Math.random()*eligible.length)] : null;
+  if(state.bolo && !state.queue.some(c=>c.id.name===state.bolo)){
+    // make sure the day's most-wanted actually walks up at least once
+    const cand = CASES.find(c=>c.id.name===state.bolo && c.minDay<=state.day);
+    if(cand){ state.used.add(cand.name); state.queue.splice(Math.floor(Math.random()*(state.queue.length+1)), 0, cand); }
+  }
+  // milestone / persistence achievements
+  if(state.day>=10) unlock("day10");
+  if(state.day>=15) unlock("day15");
+  renderManual(); renderWatchlist(); updateStats();
+  // surprise regulator audit lands once, at the start of the audit day
+  if(state.day===AUDIT_DAY && !state.audited && state.history.length>=3){
+    state.audited = true; regulatorAudit(showDayIntro);
+  } else {
+    showDayIntro();
+  }
+}
+function showDayIntro(){
+  showOverlay(`
+    <div class="big">🗂️</div>
+    <h1>DAY ${state.day}</h1>
+    <h2>${dayTitle(state.day)}</h2>
+    <p>${dayIntro(state.day)}</p>
+    ${state.news?`<div class="news">📰 <b>WIRE:</b> ${state.news}</div>`:""}
+    ${state.bolo?`<div class="bolo">⚠ <b>MOST WANTED TODAY:</b> ${state.bolo} — ${watchNote(state.bolo)}. Block them for a <b>+${money(BOLO_BONUS)}</b> bounty.</div>`:""}
+    <p class="hint" style="max-width:520px">⏱ The clock ticks only while a customer waits for your decision — be accurate, but don't dawdle.<br>🖱 Click a stamp to apply it. Click an ID field and the matching account field to compare them. Keys 1–4 stamp; M mutes.</p>
+    <button class="cta" id="goBtn">Open Window</button>
+  `);
+  el("goBtn").addEventListener("click",()=>{ hideOverlay(); startShiftClock(); renderCase(); });
+}
+
+/* ---- Surprise regulator audit: re-grades your earlier filings ---------- */
+function examinerBlock(msg){
+  return `<div class="boss sad">
+    <div class="boss-portrait"><canvas class="pxface" data-name="Examiner Reed"></canvas></div>
+    <div class="boss-speech"><div class="boss-name">FEDERAL EXAMINER REED</div>"${msg}"</div>
+  </div>`;
+}
+function regulatorAudit(onDone){
+  const wrongs  = state.history.filter(h=>!h.correct);
+  const reported = wrongs.slice(0,5);
+  const fine = reported.length*300;
+  state.pay -= fine;
+  updateStats();
+  sfx(reported.length ? "bad" : "good");
+
+  let body, msg;
+  if(reported.length===0){
+    state.pay += 500; updateStats();
+    msg = "I pulled your filings at random. Spotless. The Bureau will hear good things.";
+    body = `<p>The examiner reviews <b>${state.history.length}</b> of your filings and finds <b>no deficiencies</b>.<br>Commendation: <b style="color:#9bdc6e">+$500</b>.</p>`;
+  } else {
+    msg = "I found problems in your file. These are formal findings. The fines are real.";
+    const rows = reported.map(h=>{
+      const txt = h.misfiled ? `SAR misfiled — wrong red flags`
+                : `you ${ACT_LABEL[h.act]}, should have been ${ACT_LABEL[h.correctAct]}`;
+      return `<div style="display:flex;justify-content:space-between;gap:10px"><span>Day ${h.day} · ${h.name}</span><span class="strike">${txt}</span></div>`;
+    }).join("");
+    body = `<p>The examiner pulls your record and issues findings:</p>
+      <div class="ledger-summary">
+        ${rows||"<div>No filing errors.</div>"}
+        <div class="ls-total" style="display:flex;justify-content:space-between"><span>Regulatory fine</span><span class="strike">−${money(fine)}</span></div>
+      </div>`;
+  }
+  showOverlay(`
+    <div class="big">🔍</div>
+    <h1 style="color:#cBa24a">SURPRISE AUDIT</h1>
+    <h2>A federal examiner is on site</h2>
+    ${examinerBlock(msg)}
+    ${body}
+    <button class="cta" id="auditBtn">Back to work</button>
+  `);
+  el("auditBtn").addEventListener("click", onDone);
+}
+
+function endDay(timedOut){
+  clockStop();
+  const struckToday = state.strikes - (state.dayStartStrikes||0);
+  unlock("firstday");
+  if(struckToday===0 && !timedOut) unlock("spotless");
+  const bills = billsFor(state.day);
+  const before = state.pay;
+  state.pay -= bills.total;           // pay the day's expenses
+  const broke = state.pay < 0;
+  updateStats();
+  if(broke){ return evictionOver(bills, before); }
+  const billRows = bills.items.map(([n,v])=>`<div style="display:flex;justify-content:space-between"><span>${n}</span><span>−${money(v)}</span></div>`).join("");
+  const nextDay = state.day+1;
+  const harderNote = nextDay>6
+    ? `<p class="hint">⚠ Day ${nextDay}: ${casesForDay(nextDay)} customers, ${secPerCase(nextDay)}s each — it only gets harder from here.</p>` : "";
+  showOverlay(`
+    <div class="big">🌙</div>
+    <h1>END OF DAY ${state.day}</h1>
+    <h2>${dayTitle(state.day)} ${timedOut?"— shift over (clock ran out)":"complete"}</h2>
+    ${timedOut&&state.missed>0?`<p class="strike">${state.missed} customer(s) left unserved — lost income.</p>`:""}
+    <div class="ledger-summary">
+      <div style="display:flex;justify-content:space-between"><b>Earnings</b><b>${money(before)}</b></div>
+      ${billRows}
+      <div class="ls-total" style="display:flex;justify-content:space-between"><b>Balance</b><b>${money(state.pay)}</b></div>
+    </div>
+    <p>Strikes: <b class="strike">${state.strikes}/${MAX_STRIKES}</b>${struckToday>0?` · <span class="strike">${struckToday} today</span>`:""}</p>
+    ${harderNote}
+    ${bossBlock(struckToday>0 ? "sad" : "proud")}
+    <button class="cta" id="nextDayBtn">Begin Day ${state.day+1}</button>
+  `);
+  el("nextDayBtn").addEventListener("click",()=>{ state.day++; beginDay(); });
+}
+
+function evictionOver(bills, before){
+  endRun({
+    icon:"🏚️", color:"#a8452f",
+    title:"EVICTED", subtitle:"You couldn't cover this month's bills",
+    body:`<p>Earnings ${money(before)} − expenses ${money(bills.total)} = <b class="strike">${money(state.pay)}</b>. Every missed or botched case is money out of your family's pocket.</p>`,
+    cta:"Start Over"
+  });
+}
+
+function gameOver(){
+  endRun({
+    icon:"📦", color:"#a8452f",
+    title:"TERMINATED", subtitle:"Too many compliance violations",
+    body:`<p>You reached ${MAX_STRIKES} strikes on Day ${state.day}. Security escorted you out and the Bank's regulator has been notified. In the real world, AML failures draw multimillion-dollar fines and personal liability for compliance officers.</p>${bossBlock("fired")}`,
+    cta:"Reapply (Restart)"
+  });
+}
+
+/* ---- Title screen ------------------------------------------------------ */
+function titleScreen(){
+  const best = bestDay();
+  showOverlay(`
+    <div class="big">🛂💵</div>
+    <h1>Know Your Customer</h1>
+    <h2>An Anti-Money-Laundering Inspection Game</h2>
+    <p>You are a <b>BSA/AML Compliance Officer</b>. Customers slide documents under your window. Inspect the ID, the account, and the transaction — then stamp the correct disposition:
+    <br><br>
+    ✅ <b>Approve</b> · 📄 <b>File CTR</b> (cash over $10,000) · 🚩 <b>File SAR</b> (suspicious) · ⛔ <b>Block</b> (sanctions / failed KYC).
+    <br><br>
+    New rules unlock through Day 6 — then the shift <b>never ends</b>: each day brings more customers and less time. ${MAX_STRIKES} strikes (or going broke) and you're out. <b>Reach the highest day to top the leaderboard.</b></p>
+    ${best?`<p class="hint">Best so far: <b style="color:#9bdc6e">Day ${best}</b></p>`:""}
+    <div class="lb-wrap"><h3>★ TOP OFFICERS ★</h3>${boardRows(null,5)}</div>
+    <div class="lb-wrap"><h3>★ ACHIEVEMENTS ★</h3>${achGridHtml()}</div>
+    <button class="cta" id="startBtn">Report for Duty</button>
+  `);
+  el("startBtn").addEventListener("click", startGame);
+}
+
+/* ---- Sidebar tab switching --------------------------------------------- */
+document.querySelectorAll(".tabs button").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    sfx("click");
+    document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll(".tabcontent").forEach(t=>t.classList.remove("active"));
+    btn.classList.add("active");
+    el("tab-"+btn.dataset.tab).classList.add("active");
+  });
+});
+
+/* ---- Audio unlock + mute + keyboard shortcuts -------------------------- */
+document.addEventListener("pointerdown", audioInit);
+el("muteBtn").addEventListener("click", ()=>{ audioInit(); setMuted(!muted); });
+el("pauseBtn").addEventListener("click", togglePause);
+el("resumeBtn").addEventListener("click", resumeGame);
+document.addEventListener("keydown",(e)=>{
+  audioInit();
+  if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;   // don't hijack form typing
+  const k=e.key.toLowerCase();
+  if(k==="p"){ togglePause(); return; }
+  if(state.paused) return;                                     // everything else is frozen while paused
+  if(k==="m"){ setMuted(!muted); return; }
+  if(overlay.style.display==="flex"){                          // an overlay (day/end/title) is up
+    if(e.key==="Enter"){ const b=overlay.querySelector("button"); if(b) b.click(); }
+    return;
+  }
+  if(sarModal.classList.contains("show")){                     // a paperwork form is open
+    if(e.key==="Enter"){ const b=el("fSubmit")||el("ofacSend"); if(b) b.click(); }
+    return;
+  }
+  const nb=el("nextBtn");                                       // feedback shown → advance
+  if(nb && (e.key==="Enter"||k==="n")){ nb.click(); return; }
+  if(state.awaiting){                                           // stamps 1-4
+    const map={"1":"APPROVE","2":"CTR","3":"SAR","4":"BLOCK"};
+    if(map[k]){ const btn=actionsBar.querySelector(`[data-act="${map[k]}"]`); if(btn) btn.click(); }
+  }
+});
+
+renderManual(); renderWatchlist(); renderLearn();
+titleScreen();
+</script>
+</body>
+</html>
