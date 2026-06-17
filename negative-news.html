@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Negative News — Due Diligence Search</title>
+<style>
+  :root{
+    --gblue:#4285F4; --gred:#EA4335; --gyellow:#FBBC05; --ggreen:#34A853;
+    --link:#1a0dab; --visited:#681da8; --url:#202124; --crumb:#5f6368;
+    --snip:#4d5156; --line:#dadce0; --chip:#f1f3f4; --chiptext:#3c4043;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:#fff;color:#202124;
+    font-family:arial,"Helvetica Neue",Helvetica,sans-serif;font-size:14px;}
+  .topbar{display:flex;align-items:center;gap:22px;padding:18px 24px 0;border-bottom:1px solid var(--line);}
+  .logo{font-size:24px;font-weight:500;letter-spacing:-1px;white-space:nowrap;padding-bottom:18px;}
+  .logo .b{color:var(--gblue);}.logo .r{color:var(--gred);}.logo .y{color:var(--gyellow);}
+  .logo .g{color:var(--ggreen);}
+  .searchwrap{flex:1;max-width:620px;padding-bottom:18px;}
+  .searchbox{display:flex;align-items:center;border:1px solid var(--line);border-radius:24px;
+    padding:9px 18px;box-shadow:0 1px 6px rgba(32,33,36,.12);}
+  .searchbox:hover{box-shadow:0 1px 6px rgba(32,33,36,.28);}
+  .searchbox input{border:0;outline:0;flex:1;font-size:16px;color:#202124;background:transparent;}
+  .searchbox .icons{color:var(--gblue);font-size:18px;}
+  .tabs{display:flex;gap:26px;padding:0 24px;margin-top:8px;color:var(--crumb);font-size:13px;}
+  .tabs .t{padding:10px 0;border-bottom:3px solid transparent;}
+  .tabs .t.active{color:var(--gblue);border-bottom-color:var(--gblue);font-weight:500;}
+  .layout{display:flex;gap:40px;padding:18px 24px 60px;max-width:1100px;}
+  .results{max-width:620px;flex:1;}
+  .stats{color:var(--crumb);font-size:13px;margin-bottom:18px;}
+  .result{margin-bottom:26px;}
+  .result .crumbs{display:flex;align-items:center;gap:8px;color:var(--url);font-size:12px;line-height:1.3;}
+  .result .crumbs .fav{width:26px;height:26px;border-radius:50%;background:var(--chip);
+    display:flex;align-items:center;justify-content:center;color:var(--crumb);font-weight:bold;font-size:13px;}
+  .result .site{display:flex;flex-direction:column;}
+  .result .site .name{color:var(--url);font-size:14px;}
+  .result .site .url{color:var(--crumb);font-size:12px;}
+  .result h3{margin:4px 0 2px;font-size:20px;line-height:1.3;font-weight:400;color:var(--link);cursor:pointer;}
+  .result h3:hover{text-decoration:underline;}
+  .result.tagged h3{color:var(--visited);}
+  .result .snip{color:var(--snip);font-size:14px;line-height:1.58;}
+  .result .snip .date{color:var(--crumb);}
+  .tagrow{display:flex;gap:8px;margin-top:8px;align-items:center;}
+  .tagrow .lbl{color:var(--crumb);font-size:12px;}
+  .chip{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:16px;
+    padding:4px 14px;font-size:12px;color:var(--chiptext);}
+  .chip:hover{background:var(--chip);}
+  .chip.on.relevant{background:#fce8e6;border-color:#ea4335;color:#a50e0e;font-weight:bold;}
+  .chip.on.irrelevant{background:#e8eaed;border-color:#bdc1c6;color:#202124;font-weight:bold;}
+  .locked{border:1px dashed var(--line);border-radius:8px;padding:14px;margin-bottom:24px;color:var(--crumb);
+    display:flex;align-items:center;justify-content:space-between;}
+  .locked button{border:0;background:none;color:var(--gblue);cursor:pointer;font-size:14px;}
+  .panel{width:330px;border:1px solid var(--line);border-radius:10px;padding:18px;height:fit-content;}
+  .panel h2{margin:0 0 2px;font-size:22px;font-weight:400;}
+  .panel .ksub{color:var(--crumb);font-size:13px;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:10px;}
+  .panel .row{display:flex;margin:7px 0;font-size:13px;}
+  .panel .row .k{color:var(--crumb);min-width:120px;}
+  .standard{background:#fef7e0;border:1px solid #fbbc05;border-radius:8px;padding:10px 12px;margin-top:12px;font-size:12px;color:#7a5b00;}
+  .dispo-wrap{border:1px solid var(--line);border-radius:10px;padding:16px;margin-top:8px;background:#f8f9fa;}
+  .dispo-wrap .ttl{font-size:13px;color:var(--crumb);margin-bottom:10px;font-weight:bold;letter-spacing:.3px;}
+  .dispo{display:flex;flex-direction:column;gap:8px;}
+  .dispo button{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:8px;padding:12px;font-size:15px;color:#202124;}
+  .dispo button:hover{background:var(--chip);}
+  .dispo button.sel.yes{border-color:var(--gred);background:#fce8e6;color:#a50e0e;font-weight:bold;}
+  .dispo button.sel.no{border-color:var(--ggreen);background:#e6f4ea;color:#137333;font-weight:bold;}
+  .signoff{margin-top:12px;width:100%;background:var(--gblue);color:#fff;border:0;border-radius:8px;padding:12px;
+    font-size:15px;cursor:pointer;font-weight:500;}
+  .signoff:disabled{background:#dadce0;color:#fff;cursor:not-allowed;}
+  .fb{border:1px solid var(--line);border-radius:10px;padding:18px;margin-top:16px;}
+  .fb h3{margin:0 0 8px;font-weight:500;}
+  .good{color:var(--ggreen);} .bad{color:var(--gred);} .mid{color:#b06000;}
+  .truth{background:#f8f9fa;border-radius:8px;padding:10px 12px;margin:10px 0;font-size:13px;}
+  .teach{border-left:3px solid var(--gblue);padding-left:12px;color:var(--crumb);font-style:italic;font-size:13px;margin:8px 0;}
+  .keyrow{font-size:12px;margin:3px 0;color:var(--snip);}
+  .nextbtn{margin-top:14px;background:var(--gblue);color:#fff;border:0;border-radius:8px;padding:10px 20px;font-size:14px;cursor:pointer;}
+  .center{text-align:center;}
+  @media(max-width:900px){.layout{flex-direction:column;}.panel{width:100%;}}
+  /* browser-style tabs */
+  .browserbar{display:flex;align-items:stretch;background:#dee1e6;border-bottom:1px solid var(--line);padding:6px 8px 0;gap:6px;}
+  .btab{background:#f1f3f4;border:1px solid var(--line);border-bottom:none;border-radius:9px 9px 0 0;padding:8px 16px;font-size:13px;color:#3c4043;cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap;}
+  .btab.active{background:#fff;font-weight:bold;}
+  .btab.ofac{color:#0b3d91;}
+  .warn{display:inline-block;background:var(--gred);color:#fff;border-radius:50%;width:16px;height:16px;text-align:center;line-height:16px;font-size:11px;font-weight:bold;}
+  .bmeta{margin-left:auto;align-self:center;color:#b06000;font-size:13px;padding-right:8px;}
+  .main{max-width:650px;flex:1;}
+  .webhdr{display:flex;align-items:center;gap:22px;margin-bottom:14px;}
+  /* OFAC gov styling */
+  .ofachdr{background:#0b3d91;color:#fff;padding:14px 18px;border-radius:6px 6px 0 0;}
+  .ofactitle{font-size:20px;font-weight:bold;}
+  .ofacsub{font-size:11px;opacity:.9;margin-top:3px;letter-spacing:.3px;}
+  .ofacsearch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#eef2f8;border:1px solid #c3d0e6;border-top:none;padding:12px 14px;font-size:13px;}
+  .ofacsearch label{color:#0b3d91;font-weight:bold;}
+  .ofacsearch input{border:1px solid #aab2c0;padding:5px 8px;border-radius:3px;font-size:13px;min-width:190px;}
+  .ofacfield{background:#fff;border:1px solid #aab2c0;padding:5px 8px;border-radius:3px;}
+  .ofacbtn{background:#0b3d91;color:#fff;border:0;border-radius:3px;padding:6px 16px;opacity:.6;}
+  .ofacempty{border:1px solid var(--line);border-top:none;padding:22px 16px;color:#137333;background:#f6fbf7;font-size:14px;}
+  .ofacempty .muted{color:var(--crumb);font-size:12px;}
+  .ofaccount{font-size:12px;color:#a50e0e;background:#fff5f5;border:1px solid #f3c2c2;border-top:none;padding:9px 12px;}
+  .ofacgrid{display:grid;grid-template-columns:2fr 1fr 1.6fr .7fr .6fr;gap:8px;padding:8px 12px;font-size:13px;align-items:center;}
+  .ofachead{background:#0b3d91;color:#fff;font-weight:bold;font-size:12px;border-radius:0;}
+  .ofacrow{border:1px solid var(--line);border-top:none;}
+  .ofacname{color:#0b3d91;font-weight:bold;}
+  .ofacscore{font-weight:bold;}
+  .ofacdetail{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;padding:4px 12px 10px;font-size:12px;color:var(--snip);background:#fafbfc;}
+  .ofacdetail .k{color:var(--crumb);display:inline-block;min-width:96px;}
+  .ofacrow .tagrow{padding:2px 12px 12px;}
+  .chip.on.ofac-match{background:#fce8e6;border-color:#ea4335;color:#a50e0e;font-weight:bold;}
+  .chip.on.ofac-nomatch{background:#e6f4ea;border-color:#34a853;color:#137333;font-weight:bold;}
+  .gate{background:#fff5f5;border:1px solid #f3c2c2;color:#a50e0e;font-size:12px;padding:8px 10px;border-radius:6px;margin-top:10px;}
+  /* intro / briefing */
+  .intro{max-width:780px;margin:26px auto;padding:0 16px;}
+  .intro h1{font-size:26px;font-weight:500;margin:0 0 6px;}
+  .intro .lead{color:var(--snip);font-size:15px;margin:0 0 18px;line-height:1.5;}
+  .checkrow{display:flex;gap:16px;flex-wrap:wrap;}
+  .checkcard{flex:1;min-width:300px;border:1px solid var(--line);border-radius:10px;padding:16px;}
+  .checkcard.ofaccard{border-color:#0b3d91;}
+  .checkcard h3{margin:0 0 8px;font-size:16px;}
+  .checkcard ul{margin:0;padding-left:18px;color:var(--snip);font-size:13px;line-height:1.65;}
+  .rulebox{background:#fef7e0;border:1px solid #fbbc05;border-radius:10px;padding:14px 16px;margin:18px 0;font-size:14px;color:#7a5b00;line-height:1.5;}
+  .scorenote{color:var(--crumb);font-size:13px;margin:0 0 18px;}
+  .startbtn{background:var(--gblue);color:#fff;border:0;border-radius:8px;padding:13px 30px;font-size:16px;cursor:pointer;font-weight:500;}
+  /* pressure + stakes + juice */
+  .statchip{margin-left:14px;}
+  .clock{font-weight:bold;}
+  .clock.low{color:var(--gred);}
+  .stamp{position:fixed;top:42%;left:50%;transform:translate(-50%,-50%);font-size:58px;font-weight:bold;
+    letter-spacing:2px;border:7px solid;border-radius:12px;padding:14px 34px;background:rgba(255,255,255,.72);
+    text-transform:uppercase;pointer-events:none;z-index:999;animation:stamp 1.1s ease-out forwards;}
+  @keyframes stamp{
+    0%{opacity:0;transform:translate(-50%,-50%) scale(2.8) rotate(-22deg);}
+    18%{opacity:1;transform:translate(-50%,-50%) scale(.92) rotate(-11deg);}
+    30%{transform:translate(-50%,-50%) scale(1.03) rotate(-11deg);}
+    40%{transform:translate(-50%,-50%) scale(1) rotate(-11deg);}
+    82%{opacity:1;}
+    100%{opacity:0;transform:translate(-50%,-50%) scale(1) rotate(-11deg);}
+  }
+  .strikebar{background:#a50e0e;color:#fff;padding:8px 12px;border-radius:6px;font-weight:bold;margin-bottom:10px;}
+  .falsebar{background:#fff5f5;border:1px solid #f3c2c2;color:#a50e0e;padding:8px 12px;border-radius:6px;margin-bottom:10px;}
+  .streakbar{background:#e6f4ea;border:1px solid #34a853;color:#137333;padding:8px 12px;border-radius:6px;font-weight:bold;margin-bottom:10px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ---------- DATA (all fictional) ----------
+// relevant:true => genuine negative news that is BOTH confirmed to be this exact person AND a serious risk.
+// A case is "NEGATIVE NEWS" if it has >=1 relevant:true hit, else "NO NEGATIVE NEWS".
+// deep:true => result hidden on a later page; costs 1 point to load.
+const CASES = [
+  { name:"Daniel R. Okafor",
+    profile:[["DOB","1981-03-12"],["Country","USA (Ohio)"],["Occupation","Dentist, owns a practice"]],
+    truth:"No negative news. Every hit is the wrong person, trivial, or not adverse at all.",
+    teach:"Negative-sounding keywords ('charged','sue','cited') are not negative news. Confirm same person AND serious risk first. Lots of noise, zero signal is a common, valid outcome.",
+    hits:[
+      {h:"Local Dentist Daniel Okafor Wins Small Business Award",s:"Columbus Coastal Ledger",d:"2023-09",det:"Dr. Daniel Okafor recognized at the chamber gala for community service.",relevant:false},
+      {h:"Daniel Okafor, 19, Charged in Campus Vandalism",s:"Meridian Wire",d:"2014-04",det:"A 19-year-old Arizona student (born ~1995) faces misdemeanor charges.",relevant:false},
+      {h:"Okafor Family Dental Opens Second Location",s:"Columbus Coastal Ledger",d:"2024-02",det:"Dr. Daniel R. Okafor expands his practice amid growing demand.",relevant:false},
+      {h:"Driver Cited After Minor Fender-Bender on Route 9",s:"Tribune Daily",d:"2022-06",det:"A driver identified only as 'D. Okafor' cited for a minor traffic infraction.",relevant:false},
+      {h:"Dentists Sue Insurer Over Reimbursement Rates",s:"Health Beat",d:"2023-01",det:"A class action by 200+ dentists, with the Okafor practice as a plaintiff.",relevant:false},
+    ]},
+
+  { name:"John A. Martin",
+    profile:[["DOB","1975-11-02"],["Country","USA (Texas)"],["Occupation","Freight — Lone Star Freight LLC"]],
+    truth:"Negative news — but you must ignore a decoy. The flashy wire-fraud hit is a DIFFERENT John Martin. The real hit names John A. Martin of Lone Star Freight in a smuggling indictment.",
+    teach:"The loudest hit is often the wrong person. A same-name match and an UNNAMED report both fail the bar. Only the hit naming this exact person on a serious matter counts.",
+    hits:[
+      {h:"John Martin Sentenced to 8 Years for Wire Fraud",s:"Federal Docket News",d:"2025-02",det:"John P. Martin, 52, a Florida investment advisor, sentenced for defrauding clients.",relevant:false},
+      {h:"Lone Star Freight Expands Laredo Crossing Operations",s:"Texas Trade Journal",d:"2024-08",det:"John A. Martin, owner of the El Paso firm, announces expanded capacity.",relevant:false},
+      {h:"Customs Seizes Shipment Linked to Border Freight Firm",s:"Meridian Wire",d:"2025-04",det:"An UNNAMED El Paso logistics company is reportedly part of a DEA probe.",relevant:false},
+      {h:"John Martin, Musician, Releases New Album",s:"Coastal Arts",d:"2024-11",det:"UK singer-songwriter John Martin debuts a new record.",relevant:false},
+      {h:"Lone Star Freight Owner John A. Martin Indicted in Cross-Border Cash Smuggling Case",s:"Federal Docket News",d:"2025-05",det:"John A. Martin, owner of the El Paso freight firm, named in a federal cash-smuggling indictment.",relevant:true},
+    ]},
+
+  { name:"Priya Nair",
+    profile:[["DOB","1988-06-21"],["Country","Singapore"],["Occupation","Co-founder, Halcyon Capital"]],
+    truth:"No negative news on HER. Her partner committed the crime; prosecutors state she is a cooperating witness, not a suspect. News about her firm or associate is not negative news about the person.",
+    teach:"Adverse media about someone's company or associate is NOT negative news about the person. Exculpatory news counts. Don't flag guilt-by-association.",
+    hits:[
+      {h:"Halcyon Co-Founder Arvind Rao Arrested in Embezzlement Probe",s:"Asia Financial Wire",d:"2025-03",det:"Arvind Rao, the OTHER co-founder, was arrested on embezzlement allegations.",relevant:false},
+      {h:"Halcyon Capital Partners Under Regulatory Review",s:"Asia Financial Wire",d:"2025-03",det:"The firm co-founded by Rao and Nair faces a review of client funds.",relevant:false},
+      {h:"Priya Nair Named Rising Star in Regional Advisory",s:"Coastal Business Monthly",d:"2022-10",det:"Priya Nair of Halcyon profiled among emerging advisory leaders.",relevant:false},
+      {h:"Embezzlement Case: Rao Acted Alone, Co-Founder Cooperating — Prosecutors",s:"Asia Financial Wire",d:"2025-04",det:"Prosecutors state Nair is a cooperating witness, NOT a suspect.",relevant:false},
+      {h:"Priya Nair, Mumbai Actress, Cast in New Series",s:"Coastal Arts",d:"2024-09",det:"A different Priya Nair — an actress in India — joins a streaming drama.",relevant:false},
+    ]},
+
+  { name:"Gregor Vance",
+    profile:[["Legal name","Grzegorz Wancel (anglicized)"],["DOB","1969-01-30"],["Country","UK / Rep. of Saint Aurel"]],
+    truth:"Negative news — confirmed but buried. Page 1 is curated PR. The real hits sit on later pages under his BIRTH name, Grzegorz Wancel: a current sanctions-evasion finding plus a prior conviction.",
+    teach:"Two traps: search DEPTH (truth is on later pages) and NAME normalization (screen the birth name/alias). A page 1 that looks too clean is itself a signal.",
+    hits:[
+      {h:"Philanthropist Gregor Vance Funds New Children's Hospital Wing",s:"The Coastal Ledger",d:"2025-01",det:"Gregor Vance of Vance Holdings donates to a pediatric hospital wing.",relevant:false},
+      {h:"Gregor Vance on Building a Commodities Empire (Sponsored)",s:"Business Vision",d:"2024-11",det:"Sponsored content: a glowing promotional profile.",relevant:false},
+      {h:"Vance Holdings Named Top Regional Investor",s:"Business Vision",d:"2024-06",det:"Press-release-style coverage of the firm's performance.",relevant:false},
+      {h:"Saint Aurel Names Officials in Sanctions-Evasion Findings",s:"Global Sanctions Monitor",d:"2025-02",det:"Lists 'Grzegorz Wancel, commodities intermediary' (Vance's birth name).",relevant:true,deep:true},
+      {h:"Commodities Broker Grzegorz Wancel Fined in 2007 Sanctions-Busting Case",s:"Federal Docket News",d:"2007-09",det:"Grzegorz Wancel — Vance's birth name — fined in a prior sanctions case.",relevant:true,deep:true},
+      {h:"[Translated] Wancel Linked to Front Companies in Saint Aurel Oil Trade",s:"Aurel Daily",d:"2025-03",det:"A translated investigative piece names Grzegorz Wancel.",relevant:true,deep:true},
+    ]},
+
+  { name:"Mei-Lin Chow",
+    profile:[["DOB","1979-05-08"],["Country","Canada (Vancouver)"],["Occupation","Restaurant chain owner"]],
+    truth:"No negative news. The 'investment fraud' conviction is a DIFFERENT Mei Lin Chow (a Singapore financier). Everything else is reviews, expansion, and a minor customer suit against the restaurant.",
+    teach:"A serious crime under the same name is worthless unless it's the same person. Different city, different profession — different individual.",
+    hits:[
+      {h:"Chow's Kitchen Earns Coveted Dining Award",s:"Coastal Arts",d:"2024-03",det:"Vancouver restaurateur Mei-Lin Chow celebrated for her flagship venue.",relevant:false},
+      {h:"Mei Lin Chow Convicted of Investment Fraud in Singapore",s:"Asia Financial Wire",d:"2023-08",det:"A Singapore-based financier named Mei Lin Chow was convicted of defrauding investors.",relevant:false},
+      {h:"Restaurateur Mei-Lin Chow Opens Fifth Location",s:"Harbor Times",d:"2024-09",det:"The Vancouver chain expands downtown.",relevant:false},
+      {h:"Diner Sues Restaurant Over Allergic Reaction",s:"Health Beat",d:"2022-11",det:"A civil claim against the restaurant; settled out of court.",relevant:false},
+      {h:"Mei-Lin Chow Named to Tourism Advisory Board",s:"Harbor Times",d:"2023-12",det:"Recognized for contributions to the local food scene.",relevant:false},
+    ]},
+
+  { name:"Viktor Almaz",
+    profile:[["DOB","1971-02-14"],["Country","Rep. of Saint Aurel"],["Occupation","Gem trader"]],
+    truth:"Negative news. Viktor Almaz is named directly in a sanctions body's conflict-gem findings and tied to a smuggling route. The PR and a wrong-person chef hit are noise.",
+    teach:"When a sanctions/enforcement body names your exact subject on a serious matter, that is textbook negative news — no amount of charity PR offsets it.",
+    hits:[
+      {h:"Almaz Gems Sponsors Children's Charity Gala",s:"Coastal Arts",d:"2024-05",det:"Almaz Gems featured as a headline sponsor.",relevant:false},
+      {h:"Sanctions Body Lists Viktor Almaz in Conflict-Gem Network",s:"Global Sanctions Monitor",d:"2025-01",det:"Viktor Almaz named among parties tied to a conflict-gem trafficking network.",relevant:true},
+      {h:"Gem Trader Viktor Almaz Tied to Cross-Border Smuggling Route",s:"Veritas Wire",d:"2024-12",det:"An investigation names Almaz as a facilitator of smuggled stones.",relevant:true},
+      {h:"Almaz Gems Wins Industry Excellence Award",s:"Business Vision",d:"2023-10",det:"Promotional coverage of the firm.",relevant:false},
+      {h:"Viktor Almaz, Chef, Opens New Bistro",s:"Coastal Arts",d:"2024-02",det:"A namesake chef (no relation) launches a restaurant.",relevant:false},
+    ]},
+
+  { name:"Sarah Whitfield",
+    profile:[["DOB","1983-07-19"],["Country","USA (Boston)"],["Occupation","Pediatrician"]],
+    truth:"No negative news. A malpractice suit was dismissed, the DUI is a 22-year-old in Nevada (wrong person), and the rest is professional recognition.",
+    teach:"A dismissed civil suit and a wrong-person DUI are not negative news. Resolved-with-no-finding and same-name-different-person both fail the bar.",
+    hits:[
+      {h:"Dr. Sarah Whitfield Named Among Region's Top Doctors",s:"Health Beat",d:"2024-04",det:"Recognized for pediatric care.",relevant:false},
+      {h:"Malpractice Suit Against Dr. Whitfield Dismissed",s:"Tribune Daily",d:"2022-09",det:"A court dismissed the claim for lack of merit.",relevant:false},
+      {h:"Sarah Whitfield, 22, Cited for DUI in Nevada",s:"Meridian Wire",d:"2023-06",det:"A 22-year-old (born ~2001) cited in Reno; no medical profession noted.",relevant:false},
+      {h:"Pediatric Clinic Expands Under Dr. Whitfield",s:"Health Beat",d:"2023-11",det:"New location opens to meet demand.",relevant:false},
+      {h:"Sarah Whitfield Publishes Childhood Asthma Study",s:"Coastal Business Monthly",d:"2024-01",det:"Research featured in a medical journal.",relevant:false},
+    ]},
+
+  { name:"Tomás Herrera",
+    profile:[["DOB","1965-09-03"],["Country","Rep. of Velmara"],["Occupation","Construction magnate"]],
+    truth:"Negative news. Tomás Herrera was convicted of bribing officials for contracts, with prosecutors detailing a kickback scheme. The awards and donations don't offset a conviction.",
+    teach:"A criminal conviction naming the subject is unambiguous negative news. Positive PR around it is just noise.",
+    hits:[
+      {h:"Herrera Construction Builds New National Stadium",s:"Continental Post",d:"2023-07",det:"The firm completes a flagship public project.",relevant:false},
+      {h:"Tomás Herrera Convicted of Bribing Officials for Contracts",s:"Continental Post",d:"2024-10",det:"A court found Herrera guilty of paying bribes to win public tenders.",relevant:true},
+      {h:"Herrera Group Named Top Regional Employer",s:"Business Vision",d:"2022-05",det:"Promotional recognition of the company.",relevant:false},
+      {h:"Prosecutors Detail Kickback Scheme Involving Herrera",s:"Capital Sentinel",d:"2024-08",det:"Court filings describe kickbacks routed through shell vendors.",relevant:true},
+      {h:"Tomás Herrera Donates to University Scholarship Fund",s:"Coastal Arts",d:"2023-12",det:"A charitable gift announced with fanfare.",relevant:false},
+    ]},
+
+  { name:"Olivia Brand",
+    profile:[["DOB","1990-11-27"],["Country","USA (San Francisco)"],["Occupation","Tech founder"]],
+    truth:"No negative news. The investor lawsuit alleges poor management of a failed startup — a civil business dispute, not fraud or crime. The realtor hit is a different person.",
+    teach:"Business failure and ordinary civil investor disputes (no fraud alleged) are not negative news. Distinguish 'lost money' from 'committed a crime.'",
+    hits:[
+      {h:"Olivia Brand's Startup Raises $40M Series B",s:"Sector Watch",d:"2022-03",det:"BrandAI closes a major funding round.",relevant:false},
+      {h:"Investors Sue Failed Startup BrandAI Over Losses",s:"Sector Watch",d:"2024-06",det:"Investors allege poor management; the suit makes NO fraud claims.",relevant:false},
+      {h:"Olivia Brand, Realtor, Lists Record-Setting Home",s:"Tribune Daily",d:"2023-08",det:"A namesake real-estate agent (no relation) makes a notable sale.",relevant:false},
+      {h:"Brand Steps Down as CEO Amid Company Wind-Down",s:"Sector Watch",d:"2024-05",det:"Routine departure as the startup closes operations.",relevant:false},
+      {h:"Olivia Brand Featured in Founders Spotlight",s:"Business Vision",d:"2021-09",det:"A profile of the entrepreneur.",relevant:false},
+    ]},
+
+  { name:"Rashid Kamau",
+    profile:[["DOB","1977-04-22"],["Country","Operates near high-risk region"],["Occupation","Import/export trader"]],
+    truth:"Negative news. Rashid Kamau was added to a watchlist over terror-financing concerns and his firm is probed for a sanctions breach. The footballer hit is a different person.",
+    teach:"A watchlist addition or sanctions-breach probe naming the subject is serious, confirmed negative news.",
+    hits:[
+      {h:"Kamau Trading Expands Port Operations",s:"Harbor Times",d:"2023-06",det:"The firm announces growth at a regional port.",relevant:false},
+      {h:"Watchlist Adds Rashid Kamau Over Terror-Financing Concerns",s:"Global Sanctions Monitor",d:"2025-02",det:"Rashid Kamau named in a watchlist update citing financing concerns.",relevant:true},
+      {h:"Rashid Kamau, Footballer, Signs With Premier Club",s:"Coastal Arts",d:"2024-08",det:"A namesake athlete (no relation) joins a club.",relevant:false},
+      {h:"Authorities Probe Kamau Trading for Sanctions Breach",s:"Veritas Wire",d:"2025-03",det:"An investigation names Rashid Kamau's firm over alleged breaches.",relevant:true},
+      {h:"Kamau Trading Wins Regional Logistics Contract",s:"Business Vision",d:"2022-11",det:"Promotional coverage of a contract award.",relevant:false},
+    ]},
+
+  { name:"Greg Thompson",
+    profile:[["DOB","1985-01-15"],["Country","USA (Denver)"],["Occupation","Accountant (CPA)"]],
+    truth:"No negative news. The embezzlement conviction is a 61-year-old in Florida (born ~1963) — wrong person. Everything else is positive or neutral.",
+    teach:"Match the identifiers: age and location here rule out the only serious hit. Common names generate constant wrong-person noise.",
+    hits:[
+      {h:"Greg Thompson, 61, Convicted of Embezzlement in Florida",s:"Federal Docket News",d:"2023-05",det:"A 61-year-old Florida bookkeeper (born ~1963) convicted of embezzling client funds.",relevant:false},
+      {h:"Local CPA Greg Thompson Joins Established Firm",s:"Coastal Business Monthly",d:"2024-02",det:"Denver accountant joins a regional practice.",relevant:false},
+      {h:"Greg Thompson, Coach, Leads Team to State Title",s:"Tribune Daily",d:"2023-11",det:"A high-school coach (no relation) celebrated.",relevant:false},
+      {h:"Thompson Accounting Sponsors Little League",s:"Tribune Daily",d:"2024-04",det:"Community sponsorship announced.",relevant:false},
+      {h:"Greg Thompson Earns Advanced CPA Certification",s:"Coastal Business Monthly",d:"2022-09",det:"Professional credential noted.",relevant:false},
+    ]},
+
+  { name:"Isabella Marchetti",
+    profile:[["DOB","1974-12-02"],["Country","Italy / USA"],["Occupation","Art dealer"]],
+    truth:"Negative news. Isabella Marchetti was indicted for laundering funds through art sales and named in a money-laundering probe. The opera-singer hit is a different person.",
+    teach:"An indictment naming the subject for laundering is exactly the serious, confirmed risk the standard targets.",
+    hits:[
+      {h:"Marchetti Gallery Hosts Acclaimed Renaissance Exhibit",s:"Coastal Arts",d:"2023-10",det:"A prestigious show draws crowds.",relevant:false},
+      {h:"Isabella Marchetti Indicted for Laundering Funds Through Art Sales",s:"Federal Docket News",d:"2025-01",det:"Marchetti named in an indictment alleging laundering via inflated art transactions.",relevant:true},
+      {h:"Art Dealer Marchetti Named in Money-Laundering Probe",s:"Veritas Wire",d:"2024-11",det:"An investigation names Isabella Marchetti among those under scrutiny.",relevant:true},
+      {h:"Marchetti Gallery Wins Cultural Stewardship Award",s:"Business Vision",d:"2022-06",det:"Promotional recognition.",relevant:false},
+      {h:"Isabella Marchetti, Opera Singer, Debuts at Festival",s:"Coastal Arts",d:"2024-03",det:"A namesake soprano (no relation) performs.",relevant:false},
+    ]},
+
+  { name:"Kevin O'Brien",
+    profile:[["DOB","1980-03-30"],["Country","Ireland (Dublin)"],["Occupation","Pub owner"]],
+    truth:"No negative news. A bar-altercation charge was dropped, a licensing fine is trivial regulatory housekeeping, and a cricketer shares his name.",
+    teach:"Dropped charges and minor licensing fines don't clear the 'serious risk' bar. Triviality and non-resolution both matter.",
+    hits:[
+      {h:"Kevin O'Brien Cleared After Bar Altercation, Charges Dropped",s:"Tribune Daily",d:"2021-07",det:"Charges from a pub scuffle were dropped; no conviction.",relevant:false},
+      {h:"O'Brien's Pub Wins Best Local Pub Award",s:"Harbor Times",d:"2024-05",det:"A community favourite recognized.",relevant:false},
+      {h:"Kevin O'Brien, Cricketer, Announces Retirement",s:"Coastal Arts",d:"2023-09",det:"A well-known athlete (no relation) retires.",relevant:false},
+      {h:"Pub Fined for Late Licensing Hours",s:"Tribune Daily",d:"2022-02",det:"A minor licensing penalty issued to the venue.",relevant:false},
+      {h:"Kevin O'Brien Hosts Charity Quiz Night",s:"Harbor Times",d:"2024-01",det:"A fundraiser at the pub.",relevant:false},
+    ]},
+
+  { name:"Dr. Anand Mehta",
+    profile:[["DOB","1968-08-11"],["Country","USA (New Jersey)"],["Occupation","Pharmaceutical executive"]],
+    truth:"Negative news. Anand Mehta settled federal charges over misbranding fraud and is named in a kickback case. The cardiologist hit is a different person.",
+    teach:"A federal fraud settlement and being named in a kickback case are serious, confirmed risks — even when packaged alongside good earnings news.",
+    hits:[
+      {h:"Mehta Pharma Launches New Therapy",s:"Sector Watch",d:"2023-04",det:"A product launch announced.",relevant:false},
+      {h:"Anand Mehta Settles Federal Charges Over Misbranding Fraud",s:"Federal Docket News",d:"2024-09",det:"Mehta settled charges tied to fraudulent drug marketing.",relevant:true},
+      {h:"Pharma Exec Mehta Named in Physician Kickback Case",s:"Compliance Digest",d:"2024-07",det:"Court filings name Anand Mehta in an alleged kickback scheme.",relevant:true},
+      {h:"Mehta Pharma Reports Strong Quarterly Earnings",s:"Business Vision",d:"2023-08",det:"Financial results highlighted.",relevant:false},
+      {h:"Anand Mehta, Cardiologist, Wins Teaching Award",s:"Health Beat",d:"2022-12",det:"A namesake physician (no relation) honored.",relevant:false},
+    ]},
+
+  { name:"Lucia Fernández",
+    profile:[["DOB","1982-06-09"],["Country","Argentina (Mendoza)"],["Occupation","Wine exporter"]],
+    truth:"No negative news. A distributor's contract suit is an ordinary commercial dispute against the company; a namesake singer is a different person.",
+    teach:"Commercial contract disputes are business-as-usual, not negative news about the person. No crime, no sanctions, no fraud claim.",
+    hits:[
+      {h:"Fernández Wines Wins Gold at International Expo",s:"Business Vision",d:"2024-03",det:"A vintage earns top honors.",relevant:false},
+      {h:"Distributor Sues Fernández Wines Over Contract Terms",s:"Tribune Daily",d:"2023-10",det:"A civil dispute over shipment terms; no allegations of wrongdoing.",relevant:false},
+      {h:"Lucia Fernández, Singer, Releases Debut Album",s:"Coastal Arts",d:"2024-07",det:"A namesake musician (no relation).",relevant:false},
+      {h:"Fernández Expands Exports to Asian Markets",s:"Harbor Times",d:"2023-12",det:"Growth into new regions.",relevant:false},
+      {h:"Lucia Fernández Named Exporter of the Year",s:"Business Vision",d:"2022-11",det:"Industry recognition.",relevant:false},
+    ]},
+
+  { name:"Boris Kallan",
+    profile:[["Legal name","Boris Kallanov (anglicized to Kallan)"],["DOB","1970-10-05"],["Country","Rep. of Karovia"]],
+    truth:"Negative news, hidden by an alias on later pages. Under his registered name 'Boris Kallanov' he is named in a sanctions oil-transfer scheme and tied to front shipping firms.",
+    teach:"Screen the birth/registered name, not just the anglicized one — and dig past page 1. The relevant hits use 'Kallanov.'",
+    hits:[
+      {h:"Kallan Shipping Opens New Trans-Regional Route",s:"Harbor Times",d:"2024-04",det:"A route expansion announced.",relevant:false},
+      {h:"Boris Kallan Lauded for Maritime Innovation",s:"Business Vision",d:"2023-09",det:"Promotional profile of the executive.",relevant:false},
+      {h:"Kallan Shipping Named Carrier of the Year",s:"Sector Watch",d:"2022-07",det:"Industry award coverage.",relevant:false},
+      {h:"Sanctions List Names 'Boris Kallanov' in Oil-Transfer Scheme",s:"Global Sanctions Monitor",d:"2025-02",det:"Kallanov (Kallan's registered name) named in a sanctioned oil-transfer network.",relevant:true,deep:true},
+      {h:"Karovia Probe Links Kallanov to Front Shipping Firms",s:"Veritas Wire",d:"2025-01",det:"An investigation ties Boris Kallanov to shell carriers.",relevant:true,deep:true},
+    ]},
+
+  { name:"Hannah Goldstein",
+    profile:[["DOB","1986-02-18"],["Country","USA (Chicago)"],["Occupation","Real estate agent"]],
+    truth:"No negative news. A disbarred attorney in Texas is a different Hannah Goldstein; an HOA fence dispute is trivial. The rest is positive.",
+    teach:"A serious professional sanction (disbarment) against a same-name person in another field/state is the wrong person. HOA squabbles are noise.",
+    hits:[
+      {h:"Realtor Hannah Goldstein Tops Regional Sales Charts",s:"Business Vision",d:"2024-02",det:"Top producer recognized.",relevant:false},
+      {h:"Hannah Goldstein in Viral HOA Dispute Over Fence",s:"Tribune Daily",d:"2023-06",det:"A neighborhood disagreement goes viral.",relevant:false},
+      {h:"Hannah Goldstein, Attorney, Disbarred in Texas",s:"Capital Sentinel",d:"2022-08",det:"A Texas lawyer (no relation) lost her license over trust-account misuse.",relevant:false},
+      {h:"Goldstein Realty Sponsors Neighborhood Food Drive",s:"Harbor Times",d:"2024-05",det:"Community sponsorship.",relevant:false},
+      {h:"Hannah Goldstein Earns Senior Broker License",s:"Coastal Business Monthly",d:"2023-11",det:"Professional credential noted.",relevant:false},
+    ]},
+
+  { name:"Marcus Webb",
+    profile:[["DOB","1989-03-25"],["Country","USA"],["Occupation","Crypto exchange founder"]],
+    truth:"Negative news. Marcus Webb was charged by the SEC with defrauding investors and accused of misusing customer funds. The food-truck chef is a different person.",
+    teach:"An SEC fraud charge naming the founder is serious, confirmed negative news — no matter how many user-growth press releases surround it.",
+    hits:[
+      {h:"WebbX Exchange Surpasses One Million Users",s:"Sector Watch",d:"2023-02",det:"A growth milestone announced.",relevant:false},
+      {h:"Marcus Webb Charged by SEC With Defrauding Investors",s:"Federal Docket News",d:"2024-11",det:"The SEC charges Webb with misrepresenting WebbX's finances.",relevant:true},
+      {h:"Crypto Founder Webb Accused of Misusing Customer Funds",s:"Sector Watch",d:"2024-12",det:"Filings allege Marcus Webb diverted customer deposits.",relevant:true},
+      {h:"WebbX Announces New Token Launch",s:"Business Vision",d:"2022-10",det:"A product announcement.",relevant:false},
+      {h:"Marcus Webb, Chef, Opens Popular Food Truck",s:"Coastal Arts",d:"2023-07",det:"A namesake chef (no relation).",relevant:false},
+    ]},
+
+  { name:"Aisha Rahman",
+    profile:[["DOB","1981-09-14"],["Country","UK"],["Occupation","Nonprofit director"]],
+    truth:"No negative news. An audit CLEARED her nonprofit, a routine review found nothing, and the 'politician under scrutiny' is a different Aisha Rahman.",
+    teach:"A clearing audit and a no-findings routine review are exculpatory or neutral — not negative news. Same-name politician is the wrong person.",
+    hits:[
+      {h:"Rahman's Charity Feeds 10,000 Families This Winter",s:"Harbor Times",d:"2024-01",det:"A major aid effort highlighted.",relevant:false},
+      {h:"Audit Clears Aisha Rahman's Nonprofit of Mismanagement",s:"Tribune Daily",d:"2023-12",det:"An independent audit found no wrongdoing.",relevant:false},
+      {h:"Aisha Rahman, Politician, Faces Campaign-Finance Scrutiny",s:"Capital Sentinel",d:"2024-04",det:"A local politician (no relation) under review.",relevant:false},
+      {h:"Aisha Rahman Named Humanitarian of the Year",s:"Coastal Arts",d:"2023-10",det:"An award for her work.",relevant:false},
+      {h:"Nonprofit Completes Routine Regulatory Review",s:"Compliance Digest",d:"2024-02",det:"A standard review concluded with no findings.",relevant:false},
+    ]},
+
+  { name:"Dmitri Volkov",
+    profile:[["DOB","1973-05-19"],["Country","Rep. of Ostraka (PEP-adjacent)"],["Occupation","Energy trader"]],
+    truth:"Negative news. Dmitri Volkov — brother of a deputy minister — is named in a corruption probe, and leaked files (on a later page) tie him to offshore bribe payments.",
+    teach:"PEP-adjacency plus a named corruption probe is serious risk. The decisive leaked-files hit sits on a later page — dig for it.",
+    hits:[
+      {h:"Volkov Energy Signs Major Pipeline Deal",s:"Sector Watch",d:"2023-05",det:"A large infrastructure agreement announced.",relevant:false},
+      {h:"Dmitri Volkov, Deputy Minister's Brother, Named in Corruption Probe",s:"Continental Post",d:"2025-01",det:"Volkov named in a probe into rigged energy contracts.",relevant:true},
+      {h:"Volkov Energy Wins National Efficiency Award",s:"Business Vision",d:"2022-09",det:"Promotional recognition.",relevant:false},
+      {h:"Dmitri Volkov, Chess Master, Wins International Tournament",s:"Coastal Arts",d:"2024-03",det:"A namesake grandmaster (no relation).",relevant:false},
+      {h:"Leaked Files Tie Volkov to Offshore Bribe Payments",s:"Veritas Wire",d:"2025-03",det:"Leaked documents link Dmitri Volkov to shell-company bribe routing.",relevant:true,deep:true},
+    ]},
+
+  { name:"Patricia Lowe",
+    profile:[["DOB","1976-11-08"],["Country","Australia (Sydney)"],["Occupation","Bookkeeper"]],
+    truth:"No negative news. Entirely clean — anniversaries, accreditation, volunteering, and a namesake novelist.",
+    teach:"Sometimes the honest answer is 'nothing here.' Don't manufacture risk from a clean record.",
+    hits:[
+      {h:"Patricia Lowe Celebrates 20 Years at Accounting Firm",s:"Coastal Business Monthly",d:"2024-02",det:"A career milestone noted.",relevant:false},
+      {h:"Lowe Bookkeeping Adds Several New Clients",s:"Business Vision",d:"2023-09",det:"Routine business growth.",relevant:false},
+      {h:"Patricia Lowe, Novelist, Publishes Debut Mystery",s:"Coastal Arts",d:"2024-06",det:"A namesake author (no relation).",relevant:false},
+      {h:"Local Bookkeeper Patricia Lowe Volunteers at Shelter",s:"Harbor Times",d:"2023-12",det:"Community volunteering.",relevant:false},
+      {h:"Patricia Lowe Earns Industry Accreditation",s:"Coastal Business Monthly",d:"2022-10",det:"A professional credential.",relevant:false},
+    ]},
+
+  { name:"Farid Nazari",
+    profile:[["DOB","1984-01-27"],["Country","USA"],["Occupation","Money services business owner"]],
+    truth:"Negative news. Farid Nazari was charged with operating an unlicensed money transmitter, and his exchange was fined for AML failures. The poet is a different person.",
+    teach:"Unlicensed-transmitter charges and AML-failure fines against the owner are squarely serious, confirmed risk for a money-services subject.",
+    hits:[
+      {h:"Nazari Exchange Opens Third Branch",s:"Harbor Times",d:"2023-08",det:"A new location announced.",relevant:false},
+      {h:"Farid Nazari Charged With Operating Unlicensed Money Transmitter",s:"Federal Docket News",d:"2024-10",det:"Nazari charged with running an unlicensed MSB.",relevant:true},
+      {h:"Regulator Fines Nazari Exchange for AML Failures",s:"Compliance Digest",d:"2024-12",det:"A penalty tied to deficient anti-money-laundering controls; Nazari named as owner.",relevant:true},
+      {h:"Nazari Exchange Offers New Remittance Service",s:"Business Vision",d:"2022-11",det:"A product announcement.",relevant:false},
+      {h:"Farid Nazari, Poet, Reads at Cultural Festival",s:"Coastal Arts",d:"2023-05",det:"A namesake poet (no relation).",relevant:false},
+    ]},
+
+  { name:"James Sullivan",
+    profile:[["DOB","1979-06-12"],["Country","USA (Boston)"],["Occupation","Contractor"]],
+    truth:"No negative news. An arson conviction is a different James Sullivan in Oregon; a senator shares the name. Everything tied to the Boston builder is positive.",
+    teach:"Serious crime + same name + different state/age = wrong person. Resist the pull of an alarming headline that doesn't match.",
+    hits:[
+      {h:"James Sullivan, 48, Convicted of Arson in Oregon",s:"Federal Docket News",d:"2023-03",det:"A 48-year-old Oregon man (no Boston ties) convicted of arson.",relevant:false},
+      {h:"Sullivan Contracting Completes Public Library Renovation",s:"Harbor Times",d:"2024-04",det:"A civic project finished.",relevant:false},
+      {h:"James Sullivan, State Senator, Proposes Housing Bill",s:"Capital Sentinel",d:"2024-02",det:"A legislator (no relation).",relevant:false},
+      {h:"Local Builder James Sullivan Wins Safety Award",s:"Business Vision",d:"2023-10",det:"A workplace-safety honor.",relevant:false},
+      {h:"James Sullivan Sponsors Youth Hockey League",s:"Tribune Daily",d:"2024-01",det:"Community sponsorship.",relevant:false},
+    ]},
+
+  { name:"Yelena Petrova",
+    profile:[["DOB","1985-08-23"],["Country","USA (New York)"],["Occupation","Jeweler"]],
+    truth:"No negative news on HER. Her EX-HUSBAND was convicted in a smuggling ring; court records confirm she was not involved. The ballerina is a different person.",
+    teach:"A spouse's or ex-spouse's crime is not the customer's negative news. Records explicitly clearing her settle it.",
+    hits:[
+      {h:"Petrova Jewels Featured at Fashion Week",s:"Coastal Arts",d:"2024-03",det:"A design showcase.",relevant:false},
+      {h:"Yelena Petrova's Ex-Husband Convicted in Smuggling Ring",s:"Federal Docket News",d:"2023-11",det:"Her former spouse was convicted; the article concerns him, not her.",relevant:false},
+      {h:"Yelena Petrova, Ballerina, Joins National Company",s:"Coastal Arts",d:"2024-01",det:"A namesake dancer (no relation).",relevant:false},
+      {h:"Petrova Jewels Opens Flagship Store",s:"Harbor Times",d:"2023-09",det:"A new boutique.",relevant:false},
+      {h:"Court Records Confirm Petrova Not Involved in Ex-Spouse's Case",s:"Tribune Daily",d:"2023-12",det:"Filings state she had no role and faces no charges.",relevant:false},
+    ]},
+
+  { name:"Charles Dunmore",
+    profile:[["DOB","1972-04-04"],["Country","UK (London)"],["Occupation","Hedge fund manager"]],
+    truth:"Negative news. Charles Dunmore was convicted of insider trading and banned by a regulator. The amateur golfer is a different person.",
+    teach:"An insider-trading conviction and a regulator's ban naming the subject are core serious risk for a finance professional.",
+    hits:[
+      {h:"Dunmore Capital Posts Record Annual Returns",s:"Sector Watch",d:"2022-02",det:"Strong fund performance reported.",relevant:false},
+      {h:"Charles Dunmore Convicted of Insider Trading",s:"Federal Docket News",d:"2024-09",det:"Dunmore found guilty of trading on material non-public information.",relevant:true},
+      {h:"Hedge Fund Boss Dunmore Banned by Financial Regulator",s:"Compliance Digest",d:"2024-11",det:"A regulator barred Charles Dunmore from the industry.",relevant:true},
+      {h:"Dunmore Capital Launches New Fund",s:"Business Vision",d:"2021-10",det:"A product launch.",relevant:false},
+      {h:"Charles Dunmore, Golfer, Wins Regional Amateur Title",s:"Coastal Arts",d:"2023-06",det:"A namesake amateur athlete (no relation).",relevant:false},
+    ]},
+
+  { name:"Nadia Haddad",
+    profile:[["DOB","1983-12-30"],["Country","UAE / UK"],["Occupation","Textile importer"]],
+    truth:"No negative news. A SUPPLIER faced labor-violation accusations; Nadia cut ties and is not accused of anything. The actress is a different person.",
+    teach:"A supplier's or counterparty's misconduct is not the customer's negative news — especially when she acted to distance herself.",
+    hits:[
+      {h:"Haddad Textiles Wins Sustainability Award",s:"Business Vision",d:"2024-02",det:"Recognition for ethical sourcing.",relevant:false},
+      {h:"Supplier to Haddad Textiles Accused of Labor Violations",s:"Veritas Wire",d:"2023-10",det:"A factory supplier (not Haddad) faces labor allegations.",relevant:false},
+      {h:"Nadia Haddad, Actress, Stars in New Film",s:"Coastal Arts",d:"2024-05",det:"A namesake performer (no relation).",relevant:false},
+      {h:"Haddad Textiles Expands to New Markets",s:"Harbor Times",d:"2023-12",det:"Business growth.",relevant:false},
+      {h:"Haddad Cuts Ties With Implicated Supplier",s:"Compliance Digest",d:"2023-11",det:"The firm ended the relationship after the allegations surfaced.",relevant:false},
+    ]},
+
+  { name:"Sergio Bianchi",
+    profile:[["DOB","1966-07-21"],["Country","Italy"],["Occupation","Football club owner"]],
+    truth:"Negative news. Sergio Bianchi was convicted of tax fraud, and a later-page report links him to laundering through club finances. The winemaker is a different person.",
+    teach:"A tax-fraud conviction is serious risk; the laundering link on a later page compounds it. Dig past the sports-success PR.",
+    hits:[
+      {h:"Bianchi's Club Wins National League Title",s:"Coastal Arts",d:"2024-05",det:"A championship celebrated.",relevant:false},
+      {h:"Sergio Bianchi Convicted of Tax Fraud",s:"Continental Post",d:"2024-10",det:"A court found Bianchi guilty of large-scale tax evasion.",relevant:true},
+      {h:"Bianchi Invests in Major Stadium Upgrade",s:"Business Vision",d:"2023-08",det:"A facilities investment announced.",relevant:false},
+      {h:"Sergio Bianchi, Winemaker, Releases New Vintage",s:"Coastal Arts",d:"2023-11",det:"A namesake vintner (no relation).",relevant:false},
+      {h:"Report Links Bianchi to Laundering Through Club Finances",s:"Veritas Wire",d:"2025-01",det:"An investigation ties Sergio Bianchi to funds laundered via the club.",relevant:true,deep:true},
+    ]},
+
+  { name:"Grace Okonkwo",
+    profile:[["DOB","1987-10-16"],["Country","Nigeria (Lagos)"],["Occupation","Fintech founder"]],
+    truth:"No negative news. A regulatory inquiry CLOSED with no action, a compliance audit passed, and a namesake lawyer is a different person.",
+    teach:"An inquiry that closes with no action is not negative news — outcome matters, not the mere existence of a review.",
+    hits:[
+      {h:"Okonkwo's Fintech Hits Five Million Users",s:"Sector Watch",d:"2024-01",det:"A growth milestone.",relevant:false},
+      {h:"Regulator Closes Inquiry Into Okonkwo's Firm With No Action",s:"Compliance Digest",d:"2024-08",det:"An inquiry concluded without findings or penalty.",relevant:false},
+      {h:"Grace Okonkwo, Lawyer, Appointed to the Bench",s:"Capital Sentinel",d:"2023-09",det:"A namesake judge (no relation).",relevant:false},
+      {h:"Grace Okonkwo Named Top Fintech Innovator",s:"Business Vision",d:"2024-03",det:"An industry award.",relevant:false},
+      {h:"Fintech Firm Passes Independent Compliance Audit",s:"Compliance Digest",d:"2024-05",det:"A clean audit result.",relevant:false},
+    ]},
+
+  { name:"Hassan Al-Rashidi",
+    profile:[["DOB","1969-03-08"],["Country","High-risk gold-trade region"],["Occupation","Gold dealer"]],
+    truth:"Negative news, buried deep. Page 1 is sponsorship PR. On later pages, a sanctions monitor names Hassan Al-Rashidi in a gold-smuggling network and a translated report ties him to a sanctioned refinery.",
+    teach:"High-risk sector + a page-1 PR wall is a classic setup. The serious, confirmed hits are deep and one is translated — load and read them.",
+    hits:[
+      {h:"Al-Rashidi Gold Sponsors Regional Trade Expo",s:"Business Vision",d:"2024-04",det:"A headline sponsorship announced.",relevant:false},
+      {h:"Al-Rashidi Trading Named Regional Market Leader",s:"Sector Watch",d:"2023-09",det:"Promotional ranking coverage.",relevant:false},
+      {h:"Al-Rashidi Gold Opens New Refinery Partnership",s:"Harbor Times",d:"2024-02",det:"A business partnership announced.",relevant:false},
+      {h:"Sanctions Monitor Names Hassan Al-Rashidi in Gold-Smuggling Network",s:"Global Sanctions Monitor",d:"2025-02",det:"Al-Rashidi named among facilitators of smuggled gold.",relevant:true,deep:true},
+      {h:"[Translated] Al-Rashidi Tied to Sanctioned Refinery",s:"Bayline News",d:"2025-01",det:"A translated investigation links Hassan Al-Rashidi to a sanctioned refiner.",relevant:true,deep:true},
+    ]},
+
+  { name:"Robert Klein",
+    profile:[["DOB","1982-05-29"],["Country","USA (Phoenix)"],["Occupation","Dentist"]],
+    truth:"No negative news. A fraud conviction is a 55-year-old Robert Klein in New York; a musician shares the name. The Phoenix dentist's record is clean.",
+    teach:"Closing case: the same wrong-person pattern as the opener. Match age and location; a scary headline that doesn't fit is not your subject.",
+    hits:[
+      {h:"Robert Klein, 55, Convicted of Fraud in New York",s:"Federal Docket News",d:"2023-04",det:"A 55-year-old New York businessman (born ~1968) convicted of fraud.",relevant:false},
+      {h:"Dr. Robert Klein Opens New Dental Practice in Phoenix",s:"Health Beat",d:"2024-03",det:"The dentist launches a new clinic.",relevant:false},
+      {h:"Robert Klein, Musician, Releases Solo Album",s:"Coastal Arts",d:"2023-08",det:"A namesake artist (no relation).",relevant:false},
+      {h:"Klein Dental Wins Patient Choice Award",s:"Business Vision",d:"2024-01",det:"A service recognition.",relevant:false},
+      {h:"Robert Klein Volunteers at Free Dental Clinic",s:"Harbor Times",d:"2023-12",det:"Community volunteering.",relevant:false},
+    ]},
+
+  { name:"Elena Marković",
+    profile:[["DOB","1974-08-17"],["Country","Rep. of Velmara"],["Occupation","Trading company owner"]],
+    truth:"Negative news — but ONLY from the sanctions list. The web search is spotless (awards, expansion, charity), yet she is an OFAC-listed SDN whose name AND date of birth match. A clean news profile does not clear a sanctions hit.",
+    teach:"Never skip the OFAC tab. Adverse media and sanctions screening are independent checks — a flawless news profile can still hide a confirmed SDN listing. Here the only negative news is the sanctions match.",
+    hits:[
+      {h:"Marković Trading Named Regional Exporter of the Year",s:"Business Vision",d:"2024-03",det:"The firm wins a top trade honor.",relevant:false},
+      {h:"Elena Marković Opens New Distribution Hub",s:"Harbor Times",d:"2023-11",det:"A logistics expansion announced.",relevant:false},
+      {h:"Marković Trading Sponsors Youth Sports League",s:"Coastal Arts",d:"2024-01",det:"A community sponsorship.",relevant:false},
+      {h:"Elena Marković Profiled as Regional Business Leader",s:"Coastal Business Monthly",d:"2023-09",det:"A flattering profile of the entrepreneur.",relevant:false},
+      {h:"Marković Trading Reports Record Annual Growth",s:"Sector Watch",d:"2024-02",det:"Strong financial results highlighted.",relevant:false},
+    ]},
+];
+
+// ---------- OFAC simulated SDN data (all fictional) ----------
+// A result is a TRUE hit only if the name matches AND it is the SAME PERSON
+// (identifiers — DOB / nationality — match the customer file). isMatch encodes that.
+const OFAC = {
+  "Gregor Vance":[
+    {name:"WANCEL, Grzegorz", aka:"'VANCE, Gregor'", type:"Individual", programs:"SAINT-AUREL-EO14024", list:"SDN", score:100, dob:"30 Jan 1969", pob:"Saint Aurel", nat:"United Kingdom; Saint Aurel", isMatch:true},
+  ],
+  "Viktor Almaz":[
+    {name:"ALMAZ, Viktor", type:"Individual", programs:"SAINT-AUREL-EO14024; GLOMAG", list:"SDN", score:100, dob:"14 Feb 1971", pob:"Saint Aurel", nat:"Saint Aurel", isMatch:true},
+  ],
+  "Rashid Kamau":[
+    {name:"KAMAU, Rashid", type:"Individual", programs:"SDGT", list:"SDN", score:100, dob:"22 Apr 1977", pob:"(not listed)", nat:"(not listed)", isMatch:true},
+  ],
+  "Boris Kallan":[
+    {name:"KALLANOV, Boris", aka:"'KALLAN, Boris'", type:"Individual", programs:"KAROVIA-EO14065", list:"SDN", score:100, dob:"05 Oct 1970", pob:"Karovia", nat:"Karovia", isMatch:true},
+  ],
+  "Hassan Al-Rashidi":[
+    {name:"AL-RASHIDI, Hassan", type:"Individual", programs:"SDGT", list:"SDN", score:100, dob:"08 Mar 1969", pob:"(not listed)", nat:"(not listed)", isMatch:true},
+  ],
+  "John A. Martin":[
+    {name:"MARTIN, John Edward", type:"Individual", programs:"SDNTK", list:"SDN", score:100, dob:"15 Mar 1962", pob:"Cali, Colombia", nat:"Colombia", isMatch:false},
+  ],
+  "Greg Thompson":[
+    {name:"THOMPSON, Gregory Paul", type:"Individual", programs:"SDGT", list:"SDN", score:100, dob:"02 Jul 1959", pob:"Manchester, UK", nat:"United Kingdom", isMatch:false},
+  ],
+  "James Sullivan":[
+    {name:"SULLIVAN, James", type:"Individual", programs:"SDGT", list:"SDN", score:100, dob:"20 Nov 1968", pob:"Dublin, Ireland", nat:"Ireland", isMatch:false},
+  ],
+  "Robert Klein":[
+    {name:"KLEIN, Robert", type:"Individual", programs:"CYBER2", list:"SDN", score:100, dob:"12 Apr 1970", pob:"Munich, Germany", nat:"Germany", isMatch:false},
+  ],
+  "Elena Marković":[
+    {name:"MARKOVIC, Elena", type:"Individual", programs:"VELMARA-EO14038", list:"SDN", score:100, dob:"17 Aug 1974", pob:"Velmara", nat:"Velmara", isMatch:true},
+  ],
+};
+function ofacFor(c){ return OFAC[c.name] || []; }
+function ofacTrueMatch(c){ return ofacFor(c).some(r=>r.isMatch); }
+
+const TAGS = [["relevant","Negative news"],["irrelevant","Not relevant"]];
+const OFAC_TAGS = [["match","Same person &mdash; MATCH"],["nomatch","Not the same person"]];
+
+// ---------- STATE ----------
+let idx = 0, score = 0, state = null, DECK = [];
+let strikes = 0, streak = 0, best = 0, timer = null;
+const CASE_TIME = 75;
+function fmt(s){ s=Math.max(0,s); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+function caseAnswer(c){ return (c.hits.some(h=>h.relevant) || ofacTrueMatch(c)) ? "YES" : "NO"; }
+
+function startCase(){
+  const c = DECK[idx];
+  state = { tab:'web', tags:c.hits.map(()=>null), revealed:c.hits.map(h=>!h.deep),
+            ofacTags:ofacFor(c).map(()=>null), ofacVisited:false, dispo:null, submitted:false,
+            timeLeft:CASE_TIME, result:null };
+  render();
+  startTimer();
+}
+
+const app = document.getElementById("app");
+function fav(src){ return src.replace(/[^A-Za-z]/g,"").slice(0,1).toUpperCase() || "?"; }
+function urlify(src){ return src.toLowerCase().replace(/[^a-z]+/g,"")+".example"; }
+function gLogo(){ return `<div class="logo"><span class="b">G</span><span class="r">o</span><span class="y">g</span><span class="b">g</span><span class="g">l</span><span class="r">e</span></div>`; }
+
+function render(){
+  const c = DECK[idx];
+  app.innerHTML = `
+    ${tabBar(c)}
+    <div class="layout">
+      <div class="main">${state.tab==='web'?webMain(c):ofacMain(c)}</div>
+      <div class="side">${sidePanel(c)}<div id="fbslot"></div></div>
+    </div>`;
+  if(state.submitted){ document.getElementById("fbslot").innerHTML = renderFeedback(c); }
+}
+
+function tabBar(c){
+  const flag = state.ofacVisited ? "" : `<span class="warn">!</span>`;
+  return `<div class="browserbar">
+    <div class="btab ${state.tab==='web'?'active':''}" onclick="setTab('web')">&#128269; Goggle &mdash; "${c.name}"</div>
+    <div class="btab ofac ${state.tab==='ofac'?'active':''}" onclick="setTab('ofac')">&#128737; OFAC Sanctions Search ${flag}</div>
+    <div class="bmeta">Case ${idx+1}/${DECK.length}<span class="statchip">&#9201; <span id="clock" class="clock${state.timeLeft<=10?' low':''}">${fmt(state.timeLeft)}</span></span><span class="statchip">Strikes ${'&#10007;'.repeat(strikes)+'&#9675;'.repeat(3-strikes)}</span>${streak>=2?`<span class="statchip">&#128293; ${streak}</span>`:''}<span class="statchip">Score ${score}</span></div>
+  </div>`;
+}
+
+function webMain(c){
+  const total = c.hits.filter((h,i)=>state.revealed[i]).length;
+  let h = `<div class="webhdr">${gLogo()}
+    <div class="searchwrap"><div class="searchbox"><input value="${c.name}" readonly /><span class="icons">&#128269;</span></div></div></div>
+    <div class="stats">About ${total} results &mdash; review each. (All names &amp; news are fictional.)</div>`;
+  c.hits.forEach((hit,i)=>{
+    if(!state.revealed[i]){
+      h += `<div class="locked"><span>More results on a later page (costs 1 point to load).</span>
+        <button onclick="reveal(${i})">Load more results &rsaquo;</button></div>`;
+      return;
+    }
+    const t = state.tags[i];
+    h += `<div class="result ${t?'tagged':''}">
+      <div class="crumbs"><div class="fav">${fav(hit.s)}</div>
+        <div class="site"><span class="name">${hit.s}</span><span class="url">https://${urlify(hit.s)} &rsaquo; article</span></div></div>
+      <h3>${hit.h}</h3>
+      <div class="snip"><span class="date">${hit.d} &mdash; </span>${hit.det}</div>
+      <div class="tagrow"><span class="lbl">Your call:</span>
+        ${TAGS.map(([key,label])=>`<span class="chip ${key} ${t===key?'on':''}" onclick="setTag(${i},'${key}')">${label}</span>`).join("")}
+      </div>
+    </div>`;
+  });
+  return h;
+}
+
+function ofacMain(c){
+  const res = ofacFor(c);
+  let h = `<div class="ofachdr">
+      <div class="ofactitle">Sanctions List Search</div>
+      <div class="ofacsub">U.S. Dept. of the Treasury &middot; Office of Foreign Assets Control &mdash; SIMULATED FOR TRAINING. All data fictional.</div>
+    </div>
+    <div class="ofacsearch">
+      <label>Name</label><input value="${c.name}" readonly />
+      <label>Type</label><span class="ofacfield">Individual</span>
+      <label>Min Name Score</label><span class="ofacfield">100</span>
+      <button class="ofacbtn" disabled>Search</button>
+    </div>`;
+  if(res.length===0){
+    h += `<div class="ofacempty">Your search has returned <b>0 matches</b> for &ldquo;${c.name}&rdquo; at minimum name score 100.<br>
+      <span class="muted">No SDN / Consolidated List entries. (Confirm spelling and any known aliases before clearing.)</span></div>`;
+    return h;
+  }
+  h += `<div class="ofaccount">Lookup Results: <b>${res.length}</b> potential match(es). A name hit is NOT a true match by itself &mdash; verify each entry's identifiers against the customer file (right). It must be the SAME PERSON.</div>
+    <div class="ofacgrid ofachead"><div>Name</div><div>Type</div><div>Program(s)</div><div>List</div><div>Score</div></div>`;
+  res.forEach((r,i)=>{
+    const t = state.ofacTags[i];
+    h += `<div class="ofacrow">
+      <div class="ofacgrid">
+        <div class="ofacname">${r.name}</div><div>${r.type}</div><div>${r.programs}</div><div>${r.list}</div><div class="ofacscore">${r.score}</div>
+      </div>
+      <div class="ofacdetail">
+        ${r.aka?`<div><span class="k">a.k.a.</span> ${r.aka}</div>`:`<div></div>`}
+        <div><span class="k">DOB</span> ${r.dob}</div>
+        <div><span class="k">Place of birth</span> ${r.pob}</div>
+        <div><span class="k">Nationality</span> ${r.nat}</div>
+      </div>
+      <div class="tagrow"><span class="lbl">Same person?</span>
+        ${OFAC_TAGS.map(([key,label])=>`<span class="chip ofac-${key} ${t===key?'on':''}" onclick="setOfac(${i},'${key}')">${label}</span>`).join("")}
+      </div>
+    </div>`;
+  });
+  return h;
+}
+
+function sidePanel(c){
+  const ready = state.dispo && state.ofacVisited && !state.submitted;
+  const gate = state.ofacVisited ? "" : `<div class="gate">&#9888; You must open the OFAC Sanctions Search tab before signing off.</div>`;
+  return `<div class="panel">
+      <h2>${c.name}</h2>
+      <div class="ksub">Customer file &middot; verify identity against any match</div>
+      ${c.profile.map(p=>`<div class="row"><span class="k">${p[0]}</span><span>${p[1]}</span></div>`).join("")}
+      <div class="standard"><b>Standard:</b> "Negative news" counts only if <b>confirmed to be THIS person</b> AND a <b>serious risk</b>. An OFAC hit counts only if the name is an exact match AND the identifiers (DOB, nationality) match this file.</div>
+    </div>
+    <div class="dispo-wrap">
+      <div class="ttl">VERDICT</div>
+      <div class="dispo">
+        <button class="yes ${state.dispo==='YES'?'sel':''}" onclick="setDispo('YES')">&#9873; NEGATIVE NEWS</button>
+        <button class="no ${state.dispo==='NO'?'sel':''}" onclick="setDispo('NO')">&#10003; NO NEGATIVE NEWS</button>
+      </div>
+      ${gate}
+      <button class="signoff" onclick="submitCase()" ${ready?'':'disabled'}>Sign off &amp; stamp</button>
+    </div>`;
+}
+
+function renderFeedback(c){
+  const r = state.result;
+  const lab = a => a==="YES" ? "NEGATIVE NEWS" : "NO NEGATIVE NEWS";
+  const chosen = state.dispo ? lab(state.dispo) : "NO DECISION (time up)";
+  const sanction = ofacTrueMatch(c);
+
+  let sancLine;
+  if(sanction) sancLine = `<span class="bad"><b>Confirmed OFAC match</b> — exact name AND same person (identifiers match). This alone is negative news.</span>`;
+  else if(r.res.length) sancLine = `<span class="mid">OFAC returned ${r.res.length} namesake(s), but identifiers (DOB/nationality) do NOT match — different person. No true sanctions match.</span>`;
+  else sancLine = `<span class="good">No OFAC results.</span>`;
+
+  let banner = "";
+  if(r.strikeAdded) banner = `<div class="strikebar">&#10007; STRIKE — you cleared a subject with reportable negative news. (${strikes}/3)</div>`;
+  else if(r.falseAlarm) banner = `<div class="falsebar">False alarm — you flagged a clean subject. No strike, but over-flagging has costs.</div>`;
+  else if(r.correct && r.streakBonus) banner = `<div class="streakbar">&#128293; Streak ${streak} — +${r.streakBonus} bonus</div>`;
+
+  let html = `<div class="fb">
+    ${banner}
+    <h3 class="${r.correct?'good':'bad'}">You said ${chosen} — correct answer: ${lab(r.answer)} ${r.correct?'✓':'✗'}</h3>
+    <div>Web calls: <span class="good">${r.right} right</span>, <span class="bad">${r.wrong} wrong</span>, <span class="mid">${r.untagged} skipped</span> &nbsp;|&nbsp; OFAC: <span class="good">${r.oright} right</span>, <span class="bad">${r.owrong} wrong</span></div>
+    <div>Case points: <b>${r.caseScore>=0?'+':''}${r.caseScore}</b> (verdict ${r.dpts}, web ${r.tagPts>=0?'+':''}${r.tagPts}, OFAC ${r.ofacPts>=0?'+':''}${r.ofacPts}${r.streakBonus?`, streak +${r.streakBonus}`:''})</div>
+    <div class="truth"><b>OFAC sanctions check:</b> ${sancLine}</div>
+    <div class="truth"><b>Truth:</b> ${c.truth}</div>
+    <div class="teach">${c.teach}</div>
+    <div style="font-size:12px;font-weight:bold;margin-top:8px;">Answer key — web results</div>`;
+  c.hits.forEach((hit,i)=>{
+    const want = hit.relevant ? "NEGATIVE NEWS" : "not relevant";
+    const got = state.revealed[i] ? (state.tags[i]? (state.tags[i]==='relevant'?'negative news':'not relevant') : 'skipped') : 'never loaded';
+    const ok = state.revealed[i] && state.tags[i]!==null && ((state.tags[i]==='relevant')===hit.relevant);
+    html += `<div class="keyrow ${ok?'good':(state.revealed[i]?'bad':'mid')}">
+      ${hit.relevant?'⚑':'·'} ${hit.h.slice(0,44)}${hit.h.length>44?'…':''} → <b>${want}</b> (you: ${got})</div>`;
+  });
+  if(r.res.length){
+    html += `<div style="font-size:12px;font-weight:bold;margin-top:8px;">Answer key — OFAC</div>`;
+    r.res.forEach((rr,i)=>{
+      const want = rr.isMatch ? "SAME PERSON (match)" : "different person (no match)";
+      const got = state.ofacTags[i] ? (state.ofacTags[i]==='match'?'match':'no match') : 'skipped';
+      const ok = state.ofacTags[i]!==null && ((state.ofacTags[i]==='match')===rr.isMatch);
+      html += `<div class="keyrow ${ok?'good':'bad'}">${rr.isMatch?'⚑':'·'} ${rr.name} → <b>${want}</b> (you: ${got})</div>`;
+    });
+  }
+  let nLabel, nFn;
+  if(strikes>=3){ nLabel="View termination"; nFn="terminated()"; }
+  else if(idx===DECK.length-1){ nLabel="See final score"; nFn="finish()"; }
+  else { nLabel="Next case →"; nFn="nextCase()"; }
+  html += `<button class="nextbtn" onclick="${nFn}">${nLabel}</button></div>`;
+  return html;
+}
+
+function setTab(t){ state.tab=t; if(t==='ofac') state.ofacVisited=true; render(); }
+function setTag(i,key){ if(state.submitted)return; state.tags[i]=state.tags[i]===key?null:key; render(); }
+function setOfac(i,key){ if(state.submitted)return; state.ofacTags[i]=state.ofacTags[i]===key?null:key; render(); }
+function setDispo(d){ if(state.submitted)return; state.dispo=d; render(); }
+function reveal(i){ if(state.submitted)return; state.revealed[i]=true; score-=1; render(); }
+function submitCase(){ if(!state.dispo||!state.ofacVisited)return; doSubmit(); }
+
+function stopTimer(){ if(timer){clearInterval(timer);timer=null;} }
+function startTimer(){ stopTimer(); timer=setInterval(()=>{
+  if(!state||state.submitted){return;}
+  state.timeLeft--;
+  const el=document.getElementById('clock');
+  if(el){ el.textContent=fmt(state.timeLeft); if(state.timeLeft<=10) el.classList.add('low'); }
+  if(state.timeLeft<=0){ stopTimer(); doSubmit(); }
+},1000); }
+
+function doSubmit(){
+  if(state.submitted) return;
+  stopTimer();
+  const c = DECK[idx];
+  const answer = caseAnswer(c);
+  const correct = state.dispo === answer;
+  let tagPts=0,right=0,wrong=0,untagged=0;
+  c.hits.forEach((hit,i)=>{ if(!state.revealed[i])return; const want=hit.relevant?'relevant':'irrelevant';
+    if(state.tags[i]===null){untagged++;return;} if(state.tags[i]===want){tagPts++;right++;}else{tagPts--;wrong++;} });
+  const res=ofacFor(c); let ofacPts=0,oright=0,owrong=0;
+  res.forEach((rr,i)=>{ const want=rr.isMatch?'match':'nomatch'; if(state.ofacTags[i]===null)return;
+    if(state.ofacTags[i]===want){ofacPts++;oright++;}else{ofacPts--;owrong++;} });
+  const dpts = correct?10:0;
+  let streakBonus=0;
+  if(correct){ streak++; if(streak>=3) streakBonus=2; } else { streak=0; }
+  if(streak>best) best=streak;
+  let strikeAdded=false, falseAlarm=false;
+  if(!correct){ if(answer==='YES'){ strikes++; strikeAdded=true; } else { falseAlarm=true; } }
+  const caseScore = dpts+tagPts+ofacPts+streakBonus;
+  score += caseScore;
+  state.result = {answer,correct,dpts,tagPts,right,wrong,untagged,ofacPts,oright,owrong,res,caseScore,streakBonus,strikeAdded,falseAlarm};
+  state.submitted = true;
+  thunk(); showStamp(state.dispo);
+  render();
+}
+
+function showStamp(dispo){
+  const el=document.createElement('div');
+  el.className='stamp';
+  el.textContent = dispo==='YES' ? 'NEGATIVE NEWS' : (dispo==='NO' ? 'CLEARED' : 'NO DECISION');
+  const col = dispo==='YES' ? '#a50e0e' : (dispo==='NO' ? '#137333' : '#5f6368');
+  el.style.color=col; el.style.borderColor=col;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 1100);
+}
+function thunk(){ try{
+  const a=new (window.AudioContext||window.webkitAudioContext)();
+  const o=a.createOscillator(), g=a.createGain();
+  o.type='square'; o.frequency.setValueAtTime(150,a.currentTime); o.frequency.exponentialRampToValueAtTime(55,a.currentTime+0.12);
+  g.gain.setValueAtTime(0.16,a.currentTime); g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+0.2);
+  o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime+0.22);
+}catch(e){} }
+
+function nextCase(){ idx++; startCase(); }
+function finish(){
+  stopTimer();
+  const max = DECK.length*10;
+  app.innerHTML = `
+    <div class="topbar">${gLogo()}</div>
+    <div class="layout"><div class="fb center" style="max-width:560px;margin:40px auto;">
+      <h3>Shift complete — ${DECK.length} cases${strikes===0?', clean record':''}</h3>
+      <p style="font-size:30px;" class="${score>=max*0.7?'good':(score>=max*0.4?'mid':'bad')}">Final score: ${score}</p>
+      <p style="color:#5f6368;">Strikes: ${strikes}/3 &middot; Best streak: ${best}</p>
+      <p style="color:#5f6368;">Genuine negative news on the actual person is rarer than it looks. Most hits are noise, wrong-person, or guilt-by-association.</p>
+      <button class="nextbtn" onclick="restart()">Play again</button>
+    </div></div>`;
+}
+function terminated(){
+  stopTimer();
+  app.innerHTML = `
+    <div class="topbar">${gLogo()}</div>
+    <div class="layout"><div class="fb center" style="max-width:560px;margin:40px auto;">
+      <h3 class="bad">TERMINATED</h3>
+      <p>Three regulatory strikes. You cleared subjects who had reportable negative news, and compliance has let you go.</p>
+      <p style="font-size:26px;">Final score: ${score} &middot; Best streak: ${best}</p>
+      <p style="color:#5f6368;">Calibration beats speed. Verify identity before you clear anyone.</p>
+      <button class="nextbtn" onclick="restart()">Try again</button>
+    </div></div>`;
+}
+function intro(){
+  app.innerHTML = `
+    <div class="browserbar">
+      <div class="btab active">&#128269; Goggle</div>
+      <div class="btab ofac">&#128737; OFAC Sanctions Search</div>
+    </div>
+    <div class="layout"><div class="intro">
+      <h1>Due Diligence Analyst &mdash; Shift Briefing</h1>
+      <p class="lead">A subject's name lands on your desk. Decide whether they have genuine <b>negative news</b>. You have two independent checks &mdash; and you must run both before you sign off.</p>
+      <div class="checkrow">
+        <div class="checkcard">
+          <h3>&#9312; &#128269; Adverse-media search</h3>
+          <ul>
+            <li>Search the web and tag each result.</li>
+            <li>A result is negative news only if it is the <b>same person</b> (match name + age/location)</li>
+            <li>&hellip;and a <b>serious risk</b>: crime, fraud, sanctions.</li>
+            <li>Noise to dismiss: wrong-person namesakes, trivial items, resolved-with-no-finding, and news about an associate or company.</li>
+          </ul>
+        </div>
+        <div class="checkcard ofaccard">
+          <h3>&#9313; &#128737; OFAC sanctions search</h3>
+          <ul>
+            <li>Run the name through the sanctions list &mdash; a <b>separate tab you must open</b> before signing off.</li>
+            <li>A name hit is <b>not</b> enough on its own.</li>
+            <li>It counts only if the name is an <b>exact match</b> AND it's the <b>same person</b> &mdash; verify <b>DOB / nationality</b> against the customer file.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="rulebox"><b>The matching rule:</b> either check can independently produce negative news. A clean web search does <b>not</b> clear a sanctions hit, and a sanctions namesake with a different DOB is <b>not</b> your subject. Verify identity, every time.</div>
+      <p class="scorenote">Scoring: <b>+10</b> correct verdict &middot; <b>&plusmn;1</b> per web-result call &middot; <b>&plusmn;1</b> per OFAC call &middot; <b>&minus;1</b> to load a deep (later-page) result. ${CASES.length} cases, <b>shuffled every round</b>.</p>
+      <button class="startbtn" onclick="begin()">Start shift &rsaquo;</button>
+    </div></div>`;
+}
+function begin(){ DECK=shuffle(CASES); idx=0; score=0; strikes=0; streak=0; best=0; startCase(); }
+function restart(){ DECK=shuffle(CASES); idx=0; score=0; strikes=0; streak=0; best=0; startCase(); }
+
+intro();
+</script>
+</body>
+</html>
