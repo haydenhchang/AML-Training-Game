@@ -683,7 +683,9 @@
    - 3 stages of laundering: placement -> layering -> integration.
    ========================================================================= */
 
-const GAME_DATE = new Date(2026, 5, 5); // Jun 5, 2026 — for ID-expiry checks
+// Today's date — updates to the actual date the user is playing.
+const GAME_DATE = (()=>{ const d=new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); })(); // local midnight — for ID-expiry checks
+const GAME_DATE_STR = `${GAME_DATE.getFullYear()}-${String(GAME_DATE.getMonth()+1).padStart(2,"0")}-${String(GAME_DATE.getDate()).padStart(2,"0")}`; // YYYY-MM-DD
 const CTR_THRESHOLD = 10000;
 const MAX_STRIKES = 4;
 // economy + clock
@@ -2299,7 +2301,7 @@ function renderManual(){
   box.innerHTML = "<h3>Compliance Manual</h3>" + active.map(r=>{
     const isNew = r.day===state.day;
     return `<div class="rule ${isNew?'new':''}">${isNew?'★ NEW · ':''}${r.html}</div>`;
-  }).join("") + `<div class="hint">CTR threshold: cash OVER ${money(CTR_THRESHOLD)}. SAR deadline: 30 days. Today's date: 2026-06-05.</div>`;
+  }).join("") + `<div class="hint">CTR threshold: cash OVER ${money(CTR_THRESHOLD)}. SAR deadline: 30 days. Today's date: ${GAME_DATE_STR}.</div>`;
 }
 function renderWatchlist(){
   const box = el("tab-watch");
@@ -2513,7 +2515,7 @@ function renderCase(){
     <div class="slip">
       <div class="slip-head">★ Teller Receipt ★</div>
       <div class="slip-line">First Federal Savings · Window 4</div>
-      <div class="slip-line">2026-06-05  09:${String(hashStr(c.txn.detail)%60).padStart(2,"0")}</div>
+      <div class="slip-line">${GAME_DATE_STR}  09:${String(hashStr(c.txn.detail)%60).padStart(2,"0")}</div>
       <div class="slip-sep"></div>
       <div class="srow"><span>Type</span><span>${c.txn.type}</span></div>
       <div class="srow"><span>Tender</span><span>${c.txn.cash?"CASH":"NON-CASH"}</span></div>
